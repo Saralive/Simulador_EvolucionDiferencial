@@ -11,8 +11,8 @@ ROUTING=["COMPASS-ROUTING"]                              # Algoritmo de encamina
 REGLAS=[4]                                               # 1,2,3
 LONG_ENLACES=[1]                                         # Divisor de la longitud de enlace dinámico: 1, 2, 4, 8, 16, 32
 #----------------( E J E C U C I O N )--------------------
-CICLOS = 15                                               # Número de ciclos de recableo
-EJECUCIONES = 10                                          # Número de ejecuciones por experimento   
+CICLOS = 15                                              # Número de ciclos de recableo
+EJECUCIONES = 5                                          # Número de ejecuciones por experimento   
 #-------------------( E X T R A S )-----------------------
 ENLACES_DINAMICOS=2                                      # Número de enlaces dinámicos por nodo
 EXPLORADORES=10                                          # Número de paquetes exploradores por ciclo

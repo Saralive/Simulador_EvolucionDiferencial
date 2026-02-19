@@ -141,9 +141,9 @@ def evolucion_diferencial(corrida, n_generaciones, n_individuos, longitud, degra
     print(f'poblacion :{poblacion}')
     poblacion_inicial = generacion_individuos(corrida, experimento, n_individuos, degradacion, ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA) 
     for i in range(n_individuos):
-        x[i].append(poblacion_inicial[i].PUNTO_CRITICO)         # FUNCIÓN APTITUD                                             # Agregar aptitud a cada individuo
-        poblacion[i].append(poblacion_inicial[i].PUNTO_CRITICO) # FUNCIÓN APTITUD
-        poblacion[i].append(poblacion_inicial[i].R_COMUNICACION)
+        x[i].append(poblacion_inicial[i].R_COMUNICACION)         # FUNCIÓN APTITUD                                             # Agregar aptitud a cada individuo
+        poblacion[i].append(poblacion_inicial[i].R_COMUNICACION) # FUNCIÓN APTITUD
+        poblacion[i].append(poblacion_inicial[i].PUNTO_CRITICO)
         poblacion[i].append(poblacion_inicial[i].R_CONECTIVIDAD)                                 
         poblacion[i].append(poblacion_inicial[i].PROMEDIO)                                  
 
@@ -163,8 +163,8 @@ def evolucion_diferencial(corrida, n_generaciones, n_individuos, longitud, degra
     ruta_actual = os.getcwd()                                                                    # Obtenemos la ruta actual
     ruta_archivo_csv = os.path.abspath(os.path.join(ruta_actual,'..','..',f'Corrida{corrida}'))  # Ruta del archivo csv
     with open(ruta_archivo_csv+'_resultados.csv','w',newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(['No.Generacion','Hijos','Poblacion','Mejor_alpha','Mejor_vector_pop','Mejor_vector_dist','Mejor_aptitud','r_comunicacion','punto_critico', 'r_conectividad'])
+        writer = csv.writer(f) # Mejor_aptitud = r_comunicacion
+        writer.writerow(['No.Generacion','Hijos','Poblacion','Mejor_alpha','Mejor_vector_pop','Mejor_vector_dist','Mejor_aptitud','punto_critico','r_conectividad','promedio'])
         writer.writerow([
             0,
             str([]),
@@ -186,12 +186,12 @@ def evolucion_diferencial(corrida, n_generaciones, n_individuos, longitud, degra
 
         #-------- << E T A P A  3 >> : S E L E C C I Ó N   D E   L O S   I N D I V I D U O S   M Á S   A P T O S   P O R   G E N E R A C I Ó N
         for i in range(n_individuos):                                                            # Comparamos aptitud de hijos y padres
-            u[i].append(hijos[i].PUNTO_CRITICO)           # FUNCIÓN APTITUD                                             # La aptitud de los hijos en la lista de objetos
-            generacion[i].append(hijos[i].PUNTO_CRITICO)  # FUNCIÓN APTITUD
-            generacion[i].append(hijos[i].R_COMUNICACION)
+            u[i].append(hijos[i].R_COMUNICACION)           # FUNCIÓN APTITUD                                             # La aptitud de los hijos en la lista de objetos
+            generacion[i].append(hijos[i].R_COMUNICACION)  # FUNCIÓN APTITUD
+            generacion[i].append(hijos[i].PUNTO_CRITICO)
             generacion[i].append(hijos[i].R_CONECTIVIDAD)
             generacion[i].append(hijos[i].PROMEDIO)
-            if hijos[i].PUNTO_CRITICO >= x[i][tam]:                                                    
+            if hijos[i].R_COMUNICACION >= x[i][tam]:                                                    
                 x[i] = u[i]                                                                      # Reemplazar el padre por el hijo
                 poblacion[i] = generacion[i]
                 print(f'u_{i}: {u[i]}')
@@ -233,10 +233,10 @@ def evolucion_diferencial(corrida, n_generaciones, n_individuos, longitud, degra
 n_individuos = 5                                               # Cantidad de individuos de la población inicial
 degradacion = 'Ataques'                                        # Seleccionar 'Ataques' o 'Fallas'
 longitud = 14                                                  # Longitud de los vectores de selección
-n_generaciones = 20                                             # Número de generaciones
+n_generaciones = 3                                             # Número de generaciones
 ruta_actual = os.getcwd()                                      # Obtenemos la ruta actual
 ruta_grafica = os.path.abspath(os.path.join(ruta_actual,'..','..'))
-n_corridas = 5
+n_corridas = 3
 #--------------------- C O R R I D A S   D E L   A L G O R I T M O ---------------------#
 aptitudes = []                                                 # Guardar las aptitudes por generación y por corrida
 plt.figure()
