@@ -36,7 +36,8 @@ def copia_archivos_para_degradacion():
                         if os.path.exists(ruta_grafo):
                             # Buscar el grafo del último ciclo disponible
                             grafos = glob.glob(ruta_grafo + "graph_test_*.adjlist")
-                            ultimo_grafo = max(grafos, key=lambda x: int(os.path.splitext(x)[0][-1]))
+                            #ultimo_grafo = max(grafos, key=lambda x: int(os.path.splitext(x)[0][-1]))
+                            ultimo_grafo = max(grafos, key=lambda x: int(os.path.splitext(x)[0].split("_")[-1]))
                             for tipo_degradacion in configDegradacion.TIPO_DEGRADACION:
                                 if tipo_degradacion=="Fallas":
                                     script_degradacion = "failureDegradation.py"
