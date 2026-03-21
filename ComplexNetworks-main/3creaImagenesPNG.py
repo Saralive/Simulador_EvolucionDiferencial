@@ -131,3 +131,48 @@ for nombre_directorio, subdirectorios, ficheros in os.walk(configPaths.RESULTADO
 			plt.close()
 			creaHistogramaDistGrados(nombre_directorio+"/hist_test_"+ciclo1+".txt",configFormacion.NODOS_ANILLO,nombre_directorio,"hist_test_"+ciclo1)
 			plt.close()
+'''
+for nombre_directorio, subdirectorios, ficheros in os.walk(experimentos.RESULTADOS_DIR):
+    # Obtenemos el último nombre de carpeta (por ejemplo "1", "2", etc.)
+    base = os.path.basename(nombre_directorio)
+    lista = [str(i) for i in range(1, experimentos.EJECUCIONES + 1)]
+
+    # Si la carpeta coincide con una ejecución (por ejemplo "1", "2", "3"...)
+    if base in lista:
+
+        # Leemos el archivo de salida principal
+        datos_path = os.path.join(nombre_directorio, f"datos-salida_{base}.txt")
+        if not os.path.exists(datos_path):
+            continue
+
+        with open(datos_path, "r") as primero:
+            lineasPrimero = primero.readlines()
+
+        if not lineasPrimero:
+            continue
+
+        # Extraemos la última línea de resultados
+        ciclo1, AVCL, components, diam, APL, order = lineasPrimero[-1].split("\t")
+
+        # Construimos las rutas de los archivos que se van a usar
+        graph_path = os.path.join(nombre_directorio, f"graph_test_{ciclo1}.adjlist")
+        hist_path = os.path.join(nombre_directorio, f"hist_test_{ciclo1}.txt")
+
+        # Verificamos que existan antes de intentar graficar
+        if not os.path.exists(graph_path) or not os.path.exists(hist_path):
+            continue
+
+        # Malla (grid)
+        if "malla" in nombre_directorio:
+            draw_graph_grid(graph_path, experimentos.COLUMNS, nombre_directorio, f"graph_test_{ciclo1}")
+            plt.close()
+            nodos_malla = experimentos.COLUMNS * experimentos.ROWS
+            creaHistogramaDistGrados(hist_path, nodos_malla, nombre_directorio, f"hist_test_{ciclo1}")
+            plt.close()
+        # Anillo (ring)
+        else:
+            draw_graph_ring(graph_path, experimentos.NODOS_ANILLO, nombre_directorio, f"graph_test_{ciclo1}")
+            plt.close()
+            creaHistogramaDistGrados(hist_path, experimentos.NODOS_ANILLO, nombre_directorio, f"hist_test_{ciclo1}")
+            plt.close()
+'''

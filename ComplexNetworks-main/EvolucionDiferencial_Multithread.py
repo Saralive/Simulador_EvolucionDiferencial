@@ -10,6 +10,7 @@ from individuo import Individuo
 import threading
 import queue
 import time
+import shutil
 
 ############## F U N C I O N   Q U E   E J E C U T A   C A D A   E X P E R I M E N T O  #################
 #  S E   P A R A L E L I Z A    C O N   H I L O S   L A   E J E C U C I O N   D E L   S I M U L A D O R #
@@ -170,6 +171,11 @@ def evolucion_diferencial(configuracion, corrida, n_generaciones, n_individuos, 
     print(f'x: {x}')
     print(f'poblacion :{poblacion}')
     poblacion_inicial = generacion_individuos(configuracion, corrida, experimento, n_individuos, degradacion, ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA) 
+    # --------------------- Eliminar la carpeta experimento: ------------------------------------#
+    # ----------------------La info se encuentra en la lista de objetos poblacion_inicial--------#
+    ruta_actual = os.getcwd()
+    ruta_experimento = os.path.abspath((os.path.join(ruta_actual,'..','..',f'Configuracion_{configuracion}',f'Corrida{corrida}',f'Experimento{experimento}')))
+    shutil.rmtree(ruta_experimento)
     for i in range(n_individuos):
         x[i].append(poblacion_inicial[i].R_COMUNICACION)        # Agregar aptitud a cada individuo
         poblacion[i].append(poblacion_inicial[i].R_COMUNICACION)
@@ -193,7 +199,7 @@ def evolucion_diferencial(configuracion, corrida, n_generaciones, n_individuos, 
     # ------------------- Creación del archivo csv y registro de la poblacion inicial y el mejor ----------#
     ruta_actual = os.getcwd()                                                    # Obtenemos la ruta actual
     ruta_archivo_csv = os.path.abspath(os.path.join(ruta_actual,'..','..'))      # Ruta del archivo csv
-    ruta_archivo_csv = os.path.abspath(os.path.join(ruta_archivo_csv, f'Configuracion_{configuracion}',f'Corrida{corrida}'))
+    ruta_archivo_csv = os.path.abspath(os.path.join(ruta_archivo_csv, f'ArchivosConfiguracion_{configuracion}',f'Corrida{corrida}'))
     with open(ruta_archivo_csv+'_resultados.csv','w',newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['No.Generacion','Hijos','Poblacion','Mejor_alpha','Mejor_vector_pop','Mejor_vector_dist','Mejor_aptitud'])
@@ -216,7 +222,11 @@ def evolucion_diferencial(configuracion, corrida, n_generaciones, n_individuos, 
         n_hijos = len(u)
         ALPHA_HIJO,VECTOR_POPULARIDAD_HIJO,VECTOR_DISTANCIA_HIJO, generacion=binarizacion(u,n_hijos,longitud)# Binarización de los hijos
         hijos = generacion_individuos(configuracion, corrida, k, n_individuos, degradacion, ALPHA_HIJO, VECTOR_POPULARIDAD_HIJO, VECTOR_DISTANCIA_HIJO)
-
+        # --------------------- Eliminar la carpeta experimento: ------------------------------------#
+        # ----------------------La info se encuentra en la lista de objetos (hijos) -----------------#
+        ruta_actual = os.getcwd()
+        ruta_experimento = os.path.abspath((os.path.join(ruta_actual,'..','..',f'Configuracion_{configuracion}',f'Corrida{corrida}',f'Experimento{k}')))
+        shutil.rmtree(ruta_experimento)
         #-------- << E T A P A  3 >> : S E L E C C I Ó N   D E   L O S   I N D I V I D U O S   M Á S   A P T O S   P O R   G E N E R A C I Ó N
         for i in range(n_individuos):                                     # Comparamos aptitud de hijos y padres
             u[i].append(hijos[i].R_COMUNICACION)                          # La aptitud de los hijos en la lista de objetos
@@ -266,7 +276,8 @@ def evolucion_diferencial(configuracion, corrida, n_generaciones, n_individuos, 
 #########################################################################################################
 def pruebas(configuracion, n_corridas, n_generaciones, n_individuos, degradacion, longitud, F, CR):
     ruta_actual = os.getcwd()                                           # Obtenemos la ruta actual
-    ruta_grafica = os.path.abspath(os.path.join(ruta_actual,'..','..',f'Configuracion_{configuracion}'))
+    ruta_grafica = os.path.abspath(os.path.join(ruta_actual,'..','..',f'ArchivosConfiguracion_{configuracion}'))
+    os.makedirs(ruta_grafica, exist_ok=True)                            # Crear carpeta ArchivosConfiguracion_i
     #------- E J E C U T A R   V A R I A S   C O R R I D A S   D E L   A L G O R I T M O -----#
     aptitudes = []
     plt.figure()
@@ -298,7 +309,7 @@ def pruebas(configuracion, n_corridas, n_generaciones, n_individuos, degradacion
 ###################################################################################################
 #--------(1) P R U E B A S   P A R A   L O S   5   P A R A M E T R O S   D I S T I N T O S -------#
 F = [0.2, 0.4]              #[f1, f2]
-CR = [0.5]                  #[cr1, cr2]
+CR = [0.5,0.7]              #[cr1, cr2]
 n_corridas = [5]            #[cor1, cor2]
 n_individuos = [5]          #[ind1, ind2]
 n_generaciones = [3]        #[gen1, gen2]
@@ -307,32 +318,37 @@ degradacion = 'Ataques'
 configuracion = len(F)*len(CR)*len(n_corridas)*len(n_individuos)*len(n_generaciones) 
 #--------- Iniciar con el numero de la primer configuracion en caso de que se detenga ------------#
 tiempos = []
-for k in range(1, configuracion+1): 
-    for f in F:
-        for cr in CR:
-            for cor in n_corridas:
-                for ind in n_individuos:
-                    for gen in n_generaciones:
-                        inicio = time.perf_counter()
-                        pruebas(configuracion=k, n_corridas=cor, n_generaciones=gen, n_individuos=ind, degradacion=degradacion, longitud=longitud, F=f, CR=cr)
-                        fin = time.perf_counter()
-                        duracion = fin - inicio
-                        minutos = duracion / 60
-                        tiempos.append({'Configuracion':k,'Corrida':cor, 'Generaciones':gen, 'Individuos':ind, 'F':f, 'CR':cr, 'Tiempo_Segundos':duracion, 'Tiempo_minutos':minutos})
+k = 1
+for f in F:
+    for cr in CR:
+        for cor in n_corridas:
+            for ind in n_individuos:
+                for gen in n_generaciones:
+                    inicio = time.perf_counter()
+                    pruebas(configuracion=k, n_corridas=cor, n_generaciones=gen, n_individuos=ind, degradacion=degradacion, longitud=longitud, F=f, CR=cr)
+                    fin = time.perf_counter()
+                    duracion = fin - inicio
+                    minutos = duracion / 60
+                    tiempos.append({'Configuracion':k,'Corrida':cor, 'Generaciones':gen, 'Individuos':ind, 'F':f, 'CR':cr, 'Tiempo_Segundos':duracion, 'Tiempo_minutos':minutos})
+                    #--------------------- Borrar carpetas de las corridas------------------------#
+                    ruta_actual = os.getcwd()
+                    ruta_configuracion = os.path.abspath((os.path.join(ruta_actual,'..','..',f'Configuracion_{k}')))
+                    shutil.rmtree(ruta_configuracion)
+                    k += 1
 #------------------------ Aqui terminan de ejecutarse las configuraciones ------------------------#
 df_tiempos = pd.DataFrame(tiempos)                     # Preparar para guarda en una archivo csv
 ruta_actual = os.getcwd()
 ruta_archivo = os.path.abspath(os.path.join(ruta_actual, '..', '..'))
 ruta_tiempos = os.path.join(ruta_archivo,'tiempos.csv')
-with open(ruta_tiempos,'w',newline='') as f:            # Guardar en cvs
+with open(ruta_tiempos,'w',newline='') as f:           # Guardar en cvs
     df_tiempos.to_csv(f, index=False)
-datos = [[] for entrada in range(configuracion)]        # Extraer informacion de cada carpeta de configuracion
+datos = [[] for entrada in range(configuracion)]       # Extraer informacion de cada carpeta de configuracion
 print(datos)
 #-----------------(2) Obtención de la mejor aptitud de cada corrida ------------------------------#
 for a in range(1, configuracion + 1):
     for b in n_corridas:                               # Obtener las corridas que correponden a cada configuracion
         for c in range(1 , b + 1):
-            ruta_archivo_corrida = os.path.join(ruta_archivo, f'Configuracion_{a}', f'Corrida{c}_resultados.csv')
+            ruta_archivo_corrida = os.path.join(ruta_archivo, f'ArchivosConfiguracion_{a}', f'Corrida{c}_resultados.csv')
             with open(ruta_archivo_corrida, newline="", encoding="utf-8") as f:
                 reader = list(csv.reader(f))
                 ultima_fila = reader[-1]
@@ -351,6 +367,7 @@ for f in F:
                     for gen in n_generaciones:
                         df_configuraciones[f'F={f}\nCR={cr}\nCorridas={cor}\nIndividuos={ind}\nGeneraciones={gen}'] = datos[c]
                         c +=1
+plt.figure(figsize=(30,8))
 df_config = df_configuraciones.melt(var_name='Configuracion', value_name='Aptitud')
-ax =sns.boxplot(x='Configuracion', y='Aptitud', data=df_config, palette='Set2')
+ax =sns.boxplot(x='Configuracion', y='Aptitud', hue='Configuracion',data=df_config, palette='Set2')
 plt.savefig(ruta_cajas, dpi=300, bbox_inches='tight')

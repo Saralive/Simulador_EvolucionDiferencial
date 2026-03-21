@@ -285,28 +285,28 @@ class ComplexNetwork(Model):
                                         new_package.ruta=i[:]
                                         minimaLongitud=len(i)
                                 new_package.rutaAuxiliar=new_package.ruta[:]#copio la ruta en rutaAuxiliar
-                                if len(new_package.ruta)>0:
-                                    del new_package.ruta[0]#elimino mi id de la ruta principal
-                                    nextStep=new_package.ruta[0]
-                                    self.listaNodosSolicitados.append(clave)
-                                    self.numeroSolicitudes+=1
-                                    del new_package.ruta[0]#elimino el id al que le voy a enviar el mensaje de la ruta principal
-                                    new_package.idEnlace=enlace.idEnlace#agrego al paquete el id del enlace dinamico que esta haciendo la solicitud
-                                    #envío la solicitud al nodo con el que me quiero conectar mediante la ruta de menor longitud encontrada previamente
-                                    newevent = Event("SOLICITUD-CONEXION", event.time + 1.0, nextStep, self.id, new_package)            
-                                    self.transmit(newevent)
-                                    #if(self.__main.grafo!=3):
-                                        #print("soy",self.id,"mando",newevent.name,"a",clave,"en el tiempo",newevent.time,"mediante mi enlace dinamico numero",enlace.idEnlace,"la distancia del enlace es",self.__encaminamiento.distancia(self.id,clave,self.__main),"la ruta a seguir es",new_package.rutaAuxiliar,"ahorita envio el mensaje a",nextStep)
-                                    #else:
-                                        #print("soy",self.id,"mando",newevent.name,"a",clave,"en el tiempo",newevent.time,"mediante mi enlace dinamico numero",enlace.idEnlace,"la distancia del enlace es",self.__encaminamiento.distanciaAnillo(self.id,clave,self.__main),"la ruta a seguir es",new_package.rutaAuxiliar,"ahorita envio el mensaje a",nextStep)
-                                    #print("soy",self.id,"elimino a",clave,"de mi f_n")
-                                    with open(self.__logFile, "a", encoding="utf-8") as f:
-                                        f.write(f"f_n (después): {self.f_n}\n")
-                                    del self.f_n[clave]#elimino al nodo de la lista de frecuencias para que no se considere en futuros ciclos
-                                    self.mr = [[x for x in sublista if x != clave] for sublista in self.mr]
-                                    #print("soy",self.id,"mi f_n queda asi:",self.f_n)
-                                    if(self.__regla==2):#si ejecuto r2 rompo el ciclo
-                                        break
+                                #if len(new_package.ruta)>0:
+                                del new_package.ruta[0]#elimino mi id de la ruta principal
+                                nextStep=new_package.ruta[0]
+                                self.listaNodosSolicitados.append(clave)
+                                self.numeroSolicitudes+=1
+                                del new_package.ruta[0]#elimino el id al que le voy a enviar el mensaje de la ruta principal
+                                new_package.idEnlace=enlace.idEnlace#agrego al paquete el id del enlace dinamico que esta haciendo la solicitud
+                                #envío la solicitud al nodo con el que me quiero conectar mediante la ruta de menor longitud encontrada previamente
+                                newevent = Event("SOLICITUD-CONEXION", event.time + 1.0, nextStep, self.id, new_package)            
+                                self.transmit(newevent)
+                                #if(self.__main.grafo!=3):
+                                    #print("soy",self.id,"mando",newevent.name,"a",clave,"en el tiempo",newevent.time,"mediante mi enlace dinamico numero",enlace.idEnlace,"la distancia del enlace es",self.__encaminamiento.distancia(self.id,clave,self.__main),"la ruta a seguir es",new_package.rutaAuxiliar,"ahorita envio el mensaje a",nextStep)
+                                #else:
+                                    #print("soy",self.id,"mando",newevent.name,"a",clave,"en el tiempo",newevent.time,"mediante mi enlace dinamico numero",enlace.idEnlace,"la distancia del enlace es",self.__encaminamiento.distanciaAnillo(self.id,clave,self.__main),"la ruta a seguir es",new_package.rutaAuxiliar,"ahorita envio el mensaje a",nextStep)
+                                #print("soy",self.id,"elimino a",clave,"de mi f_n")
+                                with open(self.__logFile, "a", encoding="utf-8") as f:
+                                    f.write(f"f_n (después): {self.f_n}\n")
+                                del self.f_n[clave]#elimino al nodo de la lista de frecuencias para que no se considere en futuros ciclos
+                                self.mr = [[x for x in sublista if x != clave] for sublista in self.mr]
+                                #print("soy",self.id,"mi f_n queda asi:",self.f_n)
+                                if(self.__regla==2):#si ejecuto r2 rompo el ciclo
+                                    break
                     if(not(hayEnlacesLibres)):#si no hay enlaces libres:
                         #print("soy",self.id,"ya no tengo enlaces libres, entro a recablear")   
                         #Busco el enlace dinámico que menos haya usado.
@@ -334,38 +334,38 @@ class ComplexNetwork(Model):
                                 distancia=self.__encaminamiento.distancia(self.id,clave,self.__main)
                             else:#si estoy trabajando en un anillo:
                                 distancia=self.__encaminamiento.distanciaAnillo(self.id,clave,self.__main)
-                            if clave!= -1 and clave in self.f_n:
-                                if(self.f_n[clave]>=self.frecNodo and distancia<=enlaceReconectar.longitud):
-                                    nodoConexion=clave
-                                if(nodoConexion!=-1):
-                                    #print("soy",self.id,"elegi a",nodoConexion,"como mi candidato a CONEXION")
-                                    new_package=Paquete(self.id,0)#a este paquete se le puede agregar lo que sea
-                                    #busco entre las rutas de mis paquetes aquellas que me permiten llegar al destino
-                                    rutasCandidatas=[]#lista de todas las rutas que pasan por el nodo, de ellas buscare la de menor longitud
-                                    for i in self.paquetes:#recorro mi lista de paquetes
-                                        ruta=[]
-                                        if (nodoConexion in i.rutaAuxiliar):#si el nodo se encuentra en la ruta del i-esimo paquete
-                                            for j in range(0,len(i.rutaAuxiliar)):#recorro toda la ruta 
-                                                ruta.append(i.rutaAuxiliar[j])#agrego los nodos de la ruta hasta que llegue al destino
-                                                if(i.rutaAuxiliar[j]==nodoConexion):
-                                                    break
-                                            rutasCandidatas.append(ruta)#agrego la ruta a la lista de rutas candidatas
-                                    #busco la ruta de menor longitud que me permite llegar al destino
-                                    minimaLongitud=sys.maxsize
-                                    for i in rutasCandidatas:
-                                        if(len(i)<minimaLongitud):
-                                            new_package.ruta=i[:]
-                                            minimaLongitud=len(i)
-                                    new_package.rutaAuxiliar=new_package.ruta[:]#copio la ruta en rutaAuxiliar
-                                    del new_package.ruta[0]#elimino mi id de la ruta principal
-                                    nextStep=new_package.ruta[0]
-                                    del new_package.ruta[0]#elimino el id al que le voy a enviar el mensaje de la ruta principal
-                                    new_package.idEnlace=enlaceReconectar.idEnlace#agrego al paquete el id del enlace dinamico que esta haciendo la solicitud
-                                    self.listaNodosSolicitados.append(nodoConexion)
-                                    self.numeroSolicitudes+=1
-                                    #envio la solicitud al nodo con el que me quiero conectar mediante la ruta de menor longitud encontrada previamente
-                                    newevent = Event("SOLICITUD-CONEXION", event.time + 1.0, nextStep, self.id, new_package)            
-                                    self.transmit(newevent)
+                            #if clave!= -1 and clave in self.f_n:
+                            if(self.f_n[clave]>=self.frecNodo and distancia<=enlaceReconectar.longitud):
+                                nodoConexion=clave
+                            if(nodoConexion!=-1):
+                                #print("soy",self.id,"elegi a",nodoConexion,"como mi candidato a CONEXION")
+                                new_package=Paquete(self.id,0)#a este paquete se le puede agregar lo que sea
+                                #busco entre las rutas de mis paquetes aquellas que me permiten llegar al destino
+                                rutasCandidatas=[]#lista de todas las rutas que pasan por el nodo, de ellas buscare la de menor longitud
+                                for i in self.paquetes:#recorro mi lista de paquetes
+                                    ruta=[]
+                                    if (nodoConexion in i.rutaAuxiliar):#si el nodo se encuentra en la ruta del i-esimo paquete
+                                        for j in range(0,len(i.rutaAuxiliar)):#recorro toda la ruta 
+                                            ruta.append(i.rutaAuxiliar[j])#agrego los nodos de la ruta hasta que llegue al destino
+                                            if(i.rutaAuxiliar[j]==nodoConexion):
+                                                break
+                                        rutasCandidatas.append(ruta)#agrego la ruta a la lista de rutas candidatas
+                                #busco la ruta de menor longitud que me permite llegar al destino
+                                minimaLongitud=sys.maxsize
+                                for i in rutasCandidatas:
+                                    if(len(i)<minimaLongitud):
+                                        new_package.ruta=i[:]
+                                        minimaLongitud=len(i)
+                                new_package.rutaAuxiliar=new_package.ruta[:]#copio la ruta en rutaAuxiliar
+                                del new_package.ruta[0]#elimino mi id de la ruta principal
+                                nextStep=new_package.ruta[0]
+                                del new_package.ruta[0]#elimino el id al que le voy a enviar el mensaje de la ruta principal
+                                new_package.idEnlace=enlaceReconectar.idEnlace#agrego al paquete el id del enlace dinamico que esta haciendo la solicitud
+                                self.listaNodosSolicitados.append(nodoConexion)
+                                self.numeroSolicitudes+=1
+                                #envio la solicitud al nodo con el que me quiero conectar mediante la ruta de menor longitud encontrada previamente
+                                newevent = Event("SOLICITUD-CONEXION", event.time + 1.0, nextStep, self.id, new_package)            
+                                self.transmit(newevent)
                                     #if(self.__main.grafo!=3):#si no estoy trabajando en un anillo:
                                         #print("soy",self.id,"mando",newevent.name,"a",nodoConexion,"en el tiempo",newevent.time,"mediante mi enlace dinamico numero",enlaceReconectar.idEnlace,"la distancia del enlace es",self.__encaminamiento.distancia(self.id,clave,self.__main),"la ruta a seguir es",new_package.rutaAuxiliar,"ahorita envio el mensaje a",nextStep)
                                     #else:#si estoy trabajando en un anillo:

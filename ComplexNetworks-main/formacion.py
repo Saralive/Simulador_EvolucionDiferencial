@@ -29,7 +29,7 @@ def generar_script_constantes(nombre_archivo, long_enlace, regla,tipo_red, ruteo
         "VECTOR_DISTANCIA":configFormacion.VECTOR_DISTANCIA,
         "ALPHA":configFormacion.ALPHA,
         # Divisor de la longitud de enlace dinámico: 1, 2, 4, 8, 16, 32 
-        "LONG_ENLACE":long_enlace,        
+        "LONG_ENLACES":long_enlace,        
         #--------EJECUCION---------------
         # Número de ciclos de formación
         "CICLOS":configFormacion.CICLOS,                    

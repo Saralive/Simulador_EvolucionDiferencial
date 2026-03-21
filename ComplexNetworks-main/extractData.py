@@ -12,24 +12,25 @@ def getProperties(G):
     properties = [avCl,nCom,order,diam,avSPL]
     return properties
 
-# Se aggrego esta funcion
-def detect_encoding(path):
-    with open(path, 'rb') as f:
-        raw = f.read()
-    return chardet.detect(raw)['encoding']
+#--( Se aggrego esta funcion para windows )---#
+#def detect_encoding(path):
+#    with open(path, 'rb') as f:
+#        raw = f.read()
+#    return chardet.detect(raw)['encoding']
 
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         print("Please supply a file name")
         raise SystemExit(1)
-    #f = open(sys.argv[1],'r',encoding='utf-16-le')  #windows terminal
-    #f = open(sys.argv[1],'r',encoding='utf-8')  #linux terminal
-    #lines = f.readlines()
-    #f.close()
-    # Se agrego el detector de idioma
-    encoding = detect_encoding(sys.argv[1])
-    with open(sys.argv[1], 'r', encoding=encoding) as f:
-        lines = f.readlines()
+    #f = open(sys.argv[1],'r',encoding='utf-16-le')  #para windows terminal no funciona
+    f = open(sys.argv[1],'r',encoding='utf-8')  #linux terminal
+    lines = f.readlines()                       #linux terminal
+    f.close()                                   #linux terminal
+
+    #--- Se agrego el detector de idioma para windows--#
+    #encoding = detect_encoding(sys.argv[1])
+    #with open(sys.argv[1], 'r', encoding=encoding) as f:
+    #    lines = f.readlines()
 
     fd = open("datos-"+sys.argv[1],'w')
     fd.write('#cicle\tavCl\tcomponents\tdiam\taspl\torder\n')
