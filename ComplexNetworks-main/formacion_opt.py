@@ -5,6 +5,7 @@ import shutil
 import configFormacion_opt
 #import configPaths_opt
 import sys
+import threading
 
 RESULTADOS_DIR = sys.argv[2]
 
@@ -54,6 +55,36 @@ def generar_script_constantes(nombre_archivo, long_enlace, regla,tipo_red, ruteo
                 f.write(f"{nombre} = {valor}\n")
     print(f"Archivo '{nombre_archivo}' generado con {len(constantes)} constantes.")
 
+###### F U N C I O N   Q U E   C R E A   L A S  R E D E S   D E  C A D A   S I M U L A C I O N  ######
+def formacion(ruta, x):
+    hoja = f"{ruta}/{x}"
+    os.makedirs(hoja, exist_ok=True)
+
+    print(f"\n Simulación {x} en: {hoja}")
+
+    salida_txt = f"{hoja}/salida_{x}.txt"
+    #Creo el archivo log
+    log_file = f"{hoja}/log_{x}.txt"
+    with open(log_file, "w", encoding="utf-8") as logfile:
+        logfile.write(f"Log de la ejecución {x} en {ruta}\n")
+    # Ejecuta main.py desde la carpeta CR
+    subprocess.run([PYTHON_EXEC, "main.py", log_file], cwd=ruta, stdout=open(salida_txt, "w"))
+
+    # Copia archivos auxiliares
+    for archivo in ["extractData.py", "graph.adjlist"]:
+        src = f"{ruta}/{archivo}"
+        dest = f"{hoja}/{archivo}"
+        if os.path.exists(src):
+            shutil.copy(src, dest)
+        else:
+            print(f" No se encontró: {archivo} en {ruta}")
+
+    # Ejecuta extractData.py desde la hoja
+    if os.path.exists(hoja+"/extractData.py"):
+        print(" Extrayendo datos...")
+        subprocess.run([PYTHON_EXEC, "extractData.py", f"salida_{x}.txt", "test"], cwd=hoja)
+    else:
+        print(" No se puede extraer: falta extractData.py")
 
 for red in configFormacion_opt.RED:
     if red == "anillo":
@@ -89,32 +120,19 @@ for red in configFormacion_opt.RED:
                 # Crea constantes.py en la ruta
                 generar_script_constantes(str(ruta)+"/config.py", long_enlace, r, tipo_red,ruteo)
 
-                for x in range(1, configFormacion_opt.EJECUCIONES + 1):
-                    hoja = f"{ruta}/{x}"
-                    os.makedirs(hoja, exist_ok=True)
-
-                    print(f"\n Simulación {x} en: {hoja}")
-
-                    salida_txt = f"{hoja}/salida_{x}.txt"
-                    #Creo el archivo log
-                    log_file = f"{hoja}/log_{x}.txt"
-                    with open(log_file, "w", encoding="utf-8") as logfile:
-                        logfile.write(f"Log de la ejecución {x} en {ruta}\n")
-                    # Ejecuta main.py desde la carpeta CR
-                    subprocess.run([PYTHON_EXEC, "main.py", log_file], cwd=ruta, stdout=open(salida_txt, "w"))
-
-                    # Copia archivos auxiliares
-                    for archivo in ["extractData.py", "graph.adjlist"]:
-                        src = f"{ruta}/{archivo}"
-                        dest = f"{hoja}/{archivo}"
-                        if os.path.exists(src):
-                            shutil.copy(src, dest)
-                        else:
-                            print(f" No se encontró: {archivo} en {ruta}")
-
-                    # Ejecuta extractData.py desde la hoja
-                    if os.path.exists(hoja+"/extractData.py"):
-                        print(" Extrayendo datos...")
-                        subprocess.run([PYTHON_EXEC, "extractData.py", f"salida_{x}.txt", "test"], cwd=hoja)
-                    else:
-                        print(" No se puede extraer: falta extractData.py")
+                #############################################################
+                #------- I N I C I A M O S   P A R A L I Z A C I O N -------#
+                #############################################################
+                #-------- (1) CREAR UN HILO POR SIMULACION -----------------#
+                pool_hilos = int(configFormacion_opt.EJECUCIONES/2)
+                for h in range(2):
+                    hilos =[]
+                    for i in range(1 + h*pool_hilos, 1 + (h+1)*pool_hilos):
+                        t = threading.Thread(target=formacion, args=(ruta,i))
+                        hilos.append(t)
+                    #-------- (2) INICIAR TODOS LOS HILOS ----------------------#
+                    for t in hilos:
+                        t.start()
+                    #---------(3) ESPERAR QUE TERMINEN TODOS LOS HILOS ---------#
+                    for t in hilos:
+                        t.join()

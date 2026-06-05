@@ -279,7 +279,7 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
                 hijo_1 = IndividuoAlgoritmo(id_hijo,
                                             padre_1.ALPHA[0:ca_1]+padre_2.ALPHA[ca_1:ca_2]+padre_1.ALPHA[ca_2:longitud],
                                             padre_1.POPULARIDAD[0:cp_1]+padre_2.POPULARIDAD[cp_1:cp_2]+padre_1.POPULARIDAD[cp_2:longitud],
-                                            padre_1.DISTANCIA[0:cd_1]+padre_2.DISTANCIA[cd_1:cd_2]+padre_1.POPULARIDAD[cd_2:longitud]
+                                            padre_1.DISTANCIA[0:cd_1]+padre_2.DISTANCIA[cd_1:cd_2]+padre_1.DISTANCIA[cd_2:longitud]
                                             )
                 hijo_2 = IndividuoAlgoritmo(id_hijo + 1,
                                             padre_2.ALPHA[0:ca_1]+padre_1.ALPHA[ca_1:ca_2]+padre_1.ALPHA[ca_2:longitud],
@@ -355,13 +355,10 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
             poblacion_nueva[i].PUNTO_CRITICO = evaluacion_hijos[i].PUNTO_CRITICO
             poblacion_nueva[i].CONECTIVIDAD = evaluacion_hijos[i].R_CONECTIVIDAD
             poblacion_nueva[i].PROMEDIO = evaluacion_hijos[i].PROMEDIO
-        #-------- << E T A P A  3 >> : S E L E C C I Ó N   D E   L O S   I N D I V I D U O S   M Á S   A P T O S   P O R   G E N E R A C I Ó N
-        #------------( R E E M P L A Z A R   L O S   P E O R E S   I N D I V I D U O S )--------------------------------#
-        x.sort(key=lambda ind: ind.COMUNICACION)                         # Ordenan por aptitud descendente (peor primero)
-        poblacion_nueva.sort(key=lambda ind: ind.COMUNICACION, reverse=True)
-        for i in range(n_individuos):
-            if poblacion_nueva[i].COMUNICACION >= x[i].COMUNICACION:
-                x[i] = poblacion_nueva[i]
+        #-------- << E T A P A  3 >> : S E L E C C I Ó N     E L I T I S T A  -----------------------#
+        poblacion_total = x + poblacion_nueva
+        poblacion_total.sort(key=lambda ind: ind.COMUNICACION, reverse=True ) # Ordenarción decreciente
+        x = poblacion_total[:n_individuos]
             #----- C O N T I N U A   C O N   L A   S I G U I E N T E   G E N E R A C I O N ----------#
         # ( A Q U I   Y A   S E   A C T U A L I Z Ó   X   Q U E   C O N T I E N E   L O S   I N D I V I D U O S   M Á S   A P T O S ) ----#
         for i in range(n_individuos):
@@ -428,7 +425,7 @@ def pruebas(configuracion, n_corridas, n_generaciones, n_individuos, degradacion
 # --------------- < <  P A R A M E T R O S > > ---------------------------------------------------#
 n_individuos = 15 #-----------------------> M U L T I P L O   D E L   N U M E R O   D E   H I L O S
 pool_hilos = 15   #---------------------------> H I L O S   R E A L E S   D E   L A   M A Q U I N A
-longitud = 16
+longitud = 50
 n_corridas = 3
 degradacion = 'Ataques'
 n_generaciones = 4
