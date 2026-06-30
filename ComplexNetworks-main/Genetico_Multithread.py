@@ -15,6 +15,7 @@ import random
 import copy
 from concurrent.futures import ThreadPoolExecutor
 import rewind
+import configGenetico
 #############################################################################################################
 #      F U N C I O N E S   P A R A   C O N S T R U I R   E L   A L G O R I T M O   G E N E R T I C O        #
 #############################################################################################################
@@ -41,7 +42,7 @@ def generacion_individuos(configuracion,corrida, experimento, n_individuos, degr
         for i in range(1, n_individuos + 1):
             #---(5) MAPEO DE LAS TAREAS DE FORMA DINAMICA ---------------------------------------#
             f = executor.submit(
-                rewind.ejecutar_experimento,
+                rewind.ejecutar_experimento, 
                 i, ruta_experimento, ruta_actual, degradacion, ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA)
             equipos.append(f)
         #-------(6) LANZAR LOS EQUIPOS DE HILOS -------------------------------------------------#
@@ -49,10 +50,10 @@ def generacion_individuos(configuracion,corrida, experimento, n_individuos, degr
             regla, id_individuo = f.result()
             if regla is None:                                               # Si el hilo falló (retornó None)
                 print(f"Alerta: Guardando 'None' en el índice {id_individuo-1} debido al fallo anterior.")
-            individuos[id_individuo - 1] = regla
-
-    return individuos
-
+            individuos[id_individuo - 1] = regla                          
+            
+    return individuos                           
+    
 
 #---- G E N E R A C I O N   A L E A T O R I A   D E   L O S   P A R A M E T R O S   D E   L A   R E G L A   4
 def generacion_poblacion_inicial(n_individuos, longitud):
@@ -156,12 +157,12 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
     x = generacion_poblacion_inicial(n_individuos, longitud)
     ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA = parametros_simulador(x)
     print(x)
-    poblacion_inicial = generacion_individuos(configuracion, corrida, experimento, n_individuos, degradacion, ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA, pool_hilos)
+    poblacion_inicial = generacion_individuos(configuracion, corrida, experimento, n_individuos, degradacion, ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA, pool_hilos) 
     print(poblacion_inicial)
     #for i in range(n_individuos):
     #    print(x[i].COMUNICACION)
     #    print(x[i].PUNTO_CRITICO)
-    #    print(x[i].CONECTIVIDAD)
+    #    print(x[i].CONECTIVIDAD) 
     #    print(x[i].PROMEDIO)
     # --------------------- Eliminar la carpeta Experimento: ------------------------------------#
     # ----------------------La info se encuentra en la lista de objetos poblacion_inicial y en x-#
@@ -171,12 +172,12 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
     for i in range(n_individuos): # Actualizar los coeficientes que representa la resistencia de la red
         x[i].COMUNICACION = poblacion_inicial[i].R_COMUNICACION
         x[i].PUNTO_CRITICO = poblacion_inicial[i].PUNTO_CRITICO
-        x[i].CONECTIVIDAD = poblacion_inicial[i].R_CONECTIVIDAD
-        x[i].PROMEDIO = poblacion_inicial[i].PROMEDIO
+        x[i].CONECTIVIDAD = poblacion_inicial[i].R_CONECTIVIDAD                                
+        x[i].PROMEDIO = poblacion_inicial[i].PROMEDIO  
     for i in range(n_individuos):
         print(x[i].COMUNICACION)
         print(x[i].PUNTO_CRITICO)
-        print(x[i].CONECTIVIDAD)
+        print(x[i].CONECTIVIDAD) 
         print(x[i].PROMEDIO)
     # ---------------------- Almacenar al mejor en la población inicial -------------------------#
     mejores = [[0,[],[],0,0,0,0] for i in range(1+n_generaciones)] # Lista que guardara a los mejores por generación
@@ -224,7 +225,7 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
             for mejor in mejor_padre:
                 print(f'mejor_padre: {mejor.COMUNICACION}')
             #-----( se producen dos hijos con n_padres arbitrarios )
-            padre_1 = copy.deepcopy(mejor_padre[0]) # objeto
+            padre_1 = copy.deepcopy(mejor_padre[0]) # objeto 
             padre_2 = copy.deepcopy(mejor_padre[1]) # objeto
             #-- C O N V E R T I R   D E   R E A L   A   B I N A R I O   E L   A L P H A   D E   C A D A   P A D R E --#
             print(f'padre1_real: {padre_1.ALPHA}, Tipo: {type(padre_1.ALPHA)}')
@@ -278,7 +279,7 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
                 poblacion_nueva.append(hijo_1)
                 poblacion_nueva.append(hijo_2)
             else:
-                #-------- L O S   P A D R E S  P A S A N   A   L A   S I G U I E N T E   G E N E R A C I O N----#
+                #-------- L O S   P A D R E S  P A S A N   A   L A   S I G U I E N T E   G E N E R A C I O N----#  
                 #-------------( Y no son cruzados ni mutados: no es necesario pasar a binario el alpha )--------#
                 poblacion_nueva.append(padre_1)
                 poblacion_nueva.append(padre_2)
@@ -292,7 +293,7 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
         for hijo in poblacion_nueva:
             #---M U T A C I O N   P A R A   E L   V E C T O R   D E   P O P U L A R I D A D---#
             alpha_binario =[]
-            for bit in hijo.ALPHA:
+            for bit in hijo.ALPHA: 
                 if random.uniform(0,1) < pm_binaria:
                     bit = 1 - bit
                     alpha_binario.append(bit)
@@ -308,7 +309,7 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
             binario1 = []
             binario2 = []
             #---M U T A C I O N   P A R A   E L   V E C T O R   D E   P O P U L A R I D A D---#
-            for bit in hijo.POPULARIDAD:
+            for bit in hijo.POPULARIDAD: 
                 if random.uniform(0,1) < pm_binaria:
                     bit = 1 - bit
                     binario1.append(bit)
@@ -316,7 +317,7 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
                     binario1.append(bit)
             hijo.POPULARIDAD = binario1
             #---M U T A C I O N   P A R A   E L   V E C T O R   D E   D I S T A N C I A---#
-            for bit in hijo.DISTANCIA:
+            for bit in hijo.DISTANCIA: 
                 if random.uniform(0,1) < pm_binaria:
                     bit = 1 - bit
                     binario2.append(bit)
@@ -333,7 +334,7 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
         print(VECTOR_POPULARIDAD_HIJO)
         print(VECTOR_DISTANCIA_HIJO)
         print(poblacion_nueva)
-        evaluacion_hijos = generacion_individuos(configuracion, corrida, k, n_individuos, degradacion, ALPHA_HIJO, VECTOR_POPULARIDAD_HIJO, VECTOR_DISTANCIA_HIJO, pool_hilos)
+        evaluacion_hijos = generacion_individuos(configuracion, corrida, k, n_individuos, degradacion, ALPHA_HIJO, VECTOR_POPULARIDAD_HIJO, VECTOR_DISTANCIA_HIJO, pool_hilos) 
         print(f'evaluacion_hijos: {evaluacion_hijos}')
         # --------------------- Eliminar la carpeta experimento: ------------------------------------#
         # ----------------------La info se encuentra en la lista de objetos poblacion_inicial--------#
@@ -341,7 +342,7 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
         ruta_experimento = os.path.abspath((os.path.join(ruta_actual,'..','..',f'Configuracion_{configuracion}',f'Corrida{corrida}',f'Experimento{k}')))
         shutil.rmtree(ruta_experimento)
         #----------- ALMACENAR LAS METRICAS OBTENIDAS CON LOS EXPERIMENTOS EN LA POBLACION NUEVA-----#
-        for i in range(n_individuos):
+        for i in range(n_individuos):                                          
             poblacion_nueva[i].COMUNICACION = evaluacion_hijos[i].R_COMUNICACION
             poblacion_nueva[i].PUNTO_CRITICO = evaluacion_hijos[i].PUNTO_CRITICO
             poblacion_nueva[i].CONECTIVIDAD = evaluacion_hijos[i].R_CONECTIVIDAD
@@ -374,7 +375,7 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
                 f'{mejores[k][3]}',
                 f'{mejores[k][4]}',
                 f'{mejores[k][5]}',
-                f'{mejores[k][6]}'])
+                f'{mejores[k][6]}'])                                                                  
         print(f'Nueva generacion: {x}')
         #------------- I N D I V I D U O   O P T I M O   P O R   C O R R I D A--------------#
     return mejores[n_generaciones], mejores
@@ -399,7 +400,7 @@ def pruebas(configuracion, n_corridas, n_generaciones, n_individuos, degradacion
     plt.title('Evolución de la aptitud en múltiples corridas')
     plt.xlabel('Generación')
     plt.ylabel('Aptitud')
-    plt.legend()
+    plt.legend()   
     plt.savefig(ruta_grafica+'/grafica_aptitud.png', dpi = 200)
     #------------------------------- E S T A D I S T I C A S ------------------------------------#
     df_aptitudes = pd.DataFrame(aptitudes)
@@ -417,21 +418,21 @@ def pruebas(configuracion, n_corridas, n_generaciones, n_individuos, degradacion
 #                           P R U E B A S   D E L   A L G O R I T M O                             #
 ###################################################################################################
 # ------------------------------ < <  P A R A M E T R O S > > ------------------------------------#
-n_individuos = 6 #-----------------------> M U L T I P L O   D E L   N U M E R O   D E   H I L O S
-pool_hilos = 2   #---------------------------> H I L O S   R E A L E S   D E   L A   M A Q U I N A
-longitud = 10
-n_corridas = 1
-degradacion = 'Ataques'
-n_generaciones = 0
-n_torneo = 3
-n_padres = 2
-n_cruza = 2
-pc = [0.7]          #----------------------------------> Probablidad de cruza
-pm_binaria = [0.4]  #----------------------------------> Probabilidad de mutacion binaria
+n_individuos = configGenetico.N_INDIVIDUOS
+pool_hilos = configGenetico.POOL_HILOS
+longitud = configGenetico.LONGITUD
+n_corridas = configGenetico.N_CORRIDAS
+degradacion = configGenetico.DEGRADACION
+n_generaciones = configGenetico.N_GENERACIONES
+n_torneo = configGenetico.N_TORNEO
+n_padres = configGenetico.N_PADRES
+n_cruza = configGenetico.N_CRUZA
+pc = configGenetico.PROB_CRUZA
+pm_binaria = configGenetico.PROB_MUT
 configuracion = len(pc)*len(pm_binaria)
 #--------- Iniciar con el numero de la primer configuracion en caso de que se detenga ------------#
 tiempos = []
-k = 1
+k = 1 
 for p in pc:
     for pb in pm_binaria:
         inicio = time.perf_counter()

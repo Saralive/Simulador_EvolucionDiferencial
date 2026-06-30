@@ -13,6 +13,7 @@ import time
 import shutil
 import rewind
 from concurrent.futures import ThreadPoolExecutor
+import configEvolucionDiferencial
 #############################################################################################################
 #      F U N C I O N E S   P A R A   C O N S T R U I R   E L   A L G O R I T M O   G E N E R T I C O        #
 #############################################################################################################
@@ -263,18 +264,17 @@ def pruebas(configuracion, n_corridas, n_generaciones, n_individuos, degradacion
 #                           P R U E B A S   D E L   A L G O R I T M O                             #
 ###################################################################################################
 #--------(1) P R U E B A S   P A R A   L O S   5   P A R A M E T R O S   D I S T I N T O S -------#
-F = [0.2, 0.4]              #[f1, f2]
-CR = [0.5]              #[cr1, cr2]
-n_corridas = [5]            #[cor1, cor2]
-n_individuos = [5]          #[ind1, ind2]
-n_generaciones = [3]        #[gen1, gen2]
-longitud = 14
-degradacion = 'Ataques'
-pool_hilos = 1
+F = configEvolucionDiferencial.F
+CR = configEvolucionDiferencial.CR
+n_corridas = configEvolucionDiferencial.N_CORRIDAS
+n_individuos = configEvolucionDiferencial.N_INDIVIDUOS
+n_generaciones = configEvolucionDiferencial.N_GENERACIONES
+longitud = configEvolucionDiferencial.LONGITUD
+degradacion = configEvolucionDiferencial.DEGRADACION
+pool_hilos = configEvolucionDiferencial.POOL_HILOS
 configuracion = len(F)*len(CR)*len(n_corridas)*len(n_individuos)*len(n_generaciones) 
 #--------- Iniciar con el numero de la primer configuracion en caso de que se detenga ------------#
 tiempos = []
-#for k in range(1, configuracion+1):
 k = 1 
 for f in F:
     for cr in CR:
