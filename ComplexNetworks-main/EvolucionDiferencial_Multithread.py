@@ -11,93 +11,47 @@ import threading
 import queue
 import time
 import shutil
-
-############## F U N C I O N   Q U E   E J E C U T A   C A D A   E X P E R I M E N T O  #################
-#  S E   P A R A L E L I Z A    C O N   H I L O S   L A   E J E C U C I O N   D E L   S I M U L A D O R #
-def ejecutar_experimento(i, ruta_experimento, retornar, ruta_actual, degradacion, ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA):
-    ruta_individuo = os.path.join(ruta_experimento,f'Individuo{i}')       # Ruta completa de cada carpeta
-    os.makedirs(ruta_individuo, exist_ok=True)                            # Creación de carpeta Individuo
-
-    #-------(4) CREAR UN OBJETO DE INDIVIDUO PARA CADA RED ---------------------------------------------#
-    regla = Individuo(ruta_individuo,                         
-                    ALPHA = ALPHA[i-1],
-                    VECTOR_POPULARIDAD = VECTOR_POPULARIDAD[i-1],
-                    VECTOR_DISTANCIA = VECTOR_DISTANCIA[i-1],
-                    DEGRADACION = degradacion)  
-    
-    #-------(5) COPIAR SIMULADOR PARA EL INDIVIDUO -----------------------------------------------------#
-    subprocess.run(['python', os.path.join(ruta_actual,'0creaCopiaSimulador_opt.py'),
-                    str(regla.INDIVIDUO_DIR),str(regla.FORMACION_DIR), str(regla.DEGRADACION_DIR)])
-    
-    #-------(6) AGREGAR PARAMETROS EN ARCHIVO DE CONFIGURACION -----------------------------------------#
-    ruta_configFormacion = os.path.join(regla.INDIVIDUO_DIR,'configFormacion_opt.py')
-    with open(ruta_configFormacion, 'a', encoding = 'utf-8') as f:
-        f.write(f'\nALPHA = {regla.ALPHA}')
-        f.write(f'\nVECTOR_POPULARIDAD = {regla.VECTOR_POPULARIDAD}')
-        f.write(f'\nVECTOR_DISTANCIA = {regla.VECTOR_DISTANCIA}')
-
-    #-----------(7) AGREGAR TIPO DE DEGRADACION EN ARCHIVO DE CONFIGURACION ----------------------------#
-    ruta_configDegradacion = os.path.join(regla.INDIVIDUO_DIR,'configDegradacion_opt.py')
-    with open(ruta_configDegradacion, 'a', encoding = 'utf-8') as f:
-        f.write(f'\nTIPO_DEGRADACION=["{degradacion}"]')
-
-    #-------(8) EXPERIMENTOS DE FORMACION DE REDES -----------------------------------------------------#
-    ruta_formacion = os.path.join(regla.INDIVIDUO_DIR,'formacion_opt.py')
-    subprocess.run(['python',ruta_formacion,
-                    str(regla.INDIVIDUO_DIR),str(regla.FORMACION_DIR), str(regla.DEGRADACION_DIR)],
-                    cwd = regla.FORMACION_DIR)
-    
-    subprocess.run(['python', os.path.join(ruta_actual,'1creaPromediosFormacion_opt.py'),
-                    str(regla.INDIVIDUO_DIR),str(regla.FORMACION_DIR), str(regla.DEGRADACION_DIR)])
-    
-    #-------(9) EXPERIMENTOS DE DEGRADACION DE REDES ---------------------------------------------------#
-    ruta_degradacion = os.path.join(regla.INDIVIDUO_DIR,'degradacion_opt.py')
-    subprocess.run(['python', ruta_degradacion,
-                    str(regla.INDIVIDUO_DIR),str(regla.FORMACION_DIR), str(regla.DEGRADACION_DIR)])
-    
-    subprocess.run(['python', os.path.join(ruta_actual,'6creaPromediosDegradacion_opt.py'),
-                    str(regla.INDIVIDUO_DIR),str(regla.FORMACION_DIR), str(regla.DEGRADACION_DIR)])
-    #--------------------( A Q U I   T E R M I N A   E L   E X P E R I M E N T O )----------------------#
-
-    #--------(10) APTITUD DEL INDIVIDUO ----------------------------------------------------------------#
-    regla.robustez()                                                   # Calcula la resistencia de la red
-    retornar.put([regla, i])                                               # Objeto y el id del individuo
-
+import rewind
+from concurrent.futures import ThreadPoolExecutor
+#############################################################################################################
+#      F U N C I O N E S   P A R A   C O N S T R U I R   E L   A L G O R I T M O   G E N E R T I C O        #
+#############################################################################################################
 ###########################  G E N E R A C I Ó N   D E   I N D I V I D U O S  ################################
-def generacion_individuos(configuracion,corrida, experimento, n_individuos, degradacion, ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA):
+#---------------------------(  P A R A L E L I Z A D A   C O N   H I L O S  )-------------------------------#
+def generacion_individuos(configuracion,corrida, experimento, n_individuos, degradacion, ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA,pool_hilos):
     configuracion = str(configuracion)
     corrida = str(corrida)
     experimento = str(experimento)
-    #-----------(1) RUTAS ----------------------------------------------------------------------------------#
-    ruta_actual = os.getcwd()                                                 # Obtener la ruta actual
+    #-----------(1) RUTAS ---------------------------------------------------------------------------------------------#
+    ruta_actual = os.getcwd()                                                               # Obtener la ruta actual
     ruta_configuracion = os.path.abspath(os.path.join(ruta_actual,'..','..'))
     ruta_configuracion = os.path.join(ruta_configuracion, f'Configuracion_{configuracion}') # Ruta de la configuracion
-    ruta_corrida = os.path.join(ruta_configuracion,f'Corrida{corrida}')         # Ruta de la carpeta Corrida
+    ruta_corrida = os.path.join(ruta_configuracion,f'Corrida{corrida}')                     # Ruta de la carpeta Corrida
     os.makedirs(ruta_corrida, exist_ok=True)
 
-    #-----------(2) CREAR LA CARPETA EXPERIMENTO -----------------------------------------------------------#
+    #-----------(2) CREAR LA CARPETA EXPERIMENTO ----------------------------------------------------------------------#
     ruta_experimento = os.path.join(ruta_corrida,f'Experimento{experimento}')
     os.makedirs(ruta_experimento, exist_ok=True)
 
-    #-----------(3) CREAR UNA CARPETA POR INDIVIDUO DEL EXPERIMENTO ----------------------------------------#
-    individuos = [0]*n_individuos                                             # Lista de individuos
-    #-----------(4) CREAR UN HILO POR CADA INDIVIDUO -------------------------------------------------------#
-    hilos = []                                                                # Llevar un conteo de los hilos
-    retornar = queue.Queue()                                                  # Obtener lo que retorna la funcion
-    for i in range(1, n_individuos + 1):
-        t = threading.Thread(target=ejecutar_experimento, args=(i, ruta_experimento, retornar, ruta_actual, degradacion, ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA ))
-        hilos.append(t)
-    #-----------(5) INICIAR TODOS LOS HILOS ----------------------------------------------------------------#
-    for t in hilos:
-        t.start()                                                             # Ejecución del hilo
-    #-----------(6) ESPERAR QUE TERMINEN TODOS LOS HILOS ---------------------------------------------------#
-    for t in hilos:
-        t.join()                                                              # Esperar que terminen cada hilo
-    #-----------(7) GUARDAR LOS RESULTADOS DE CADA HILO DONDE CORRESPONDE ----------------------------------#
-    while not retornar.empty():
-        regla , id = retornar.get()                       # Retorna el objeto individuo y el id del individuo
-        individuos[id-1] = regla                          # Guarda las configuraciones de cada individuo 
-    return individuos                                     # Retorna una lista de objetos
+    #-----------(3) CREAR UNA CARPETA POR INDIVIDUO DEL EXPERIMENTO ---------------------------------------------------#
+    individuos = [None]*n_individuos                                                           # Lista de individuos
+    #-----------(4) CREAR UN POOL DE HILOS -----------------------------------------------------------------#
+    with ThreadPoolExecutor(max_workers=pool_hilos) as executor:
+        equipos = []
+        for i in range(1, n_individuos + 1):
+            #---(5) MAPEO DE LAS TAREAS DE FORMA DINAMICA ---------------------------------------#
+            f = executor.submit(
+                rewind.ejecutar_experimento, 
+                i, ruta_experimento, ruta_actual, degradacion, ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA)
+            equipos.append(f)
+        #-------(6) LANZAR LOS EQUIPOS DE HILOS -------------------------------------------------#
+        for f in equipos:
+            regla, id_individuo = f.result()
+            if regla is None:                                               # Si el hilo falló (retornó None)
+                print(f"Alerta: Guardando 'None' en el índice {id_individuo-1} debido al fallo anterior.")
+            individuos[id_individuo - 1] = regla                          
+            
+    return individuos      
 ####################################### ( C O R R I D A S ) ##################################################
 def resultados_corridas(configuracion, corridas, n_generaciones,n_individuos,longitud,degradacion, F, CR, resultados):
     individuo_optimo, mejor_por_generaciones = evolucion_diferencial(configuracion, corridas, n_generaciones,n_individuos,longitud,degradacion, F, CR)
@@ -160,17 +114,17 @@ def generacion_hijos(x, n_hijos, F, CR):
             u[j][k] = min(1, max(0, u[j][k]))                  # Mantiene los valores dentro del intervalo [0,1]
     return u                                                   # Retorna los hijos con entradas reales y sin redondear
 
-##################################################
-#   F U N C I O N   D E L   A L G O R I T M O    #
-##################################################
-def evolucion_diferencial(configuracion, corrida, n_generaciones, n_individuos, longitud, degradacion, F, CR):
+#################################################################################################
+#  F U N C I O N   D E L   A L G O R I T M O   D E   E V O L U C I O N   D I F E R E N C I A L  #
+#################################################################################################
+def evolucion_diferencial(configuracion, corrida, n_generaciones, n_individuos, longitud, degradacion, F, CR, pool_hilos):
     #-------- << E T A P A  1 >> : G E N E R A C I Ó N   D E   L A   P O B L A C I Ó N   I N I C I A L --------------------------------------#
     experimento = 0                                            # Carpeta de la población inicial <Experimento0>
     x = parametros_regla4(n_individuos, longitud)              # Generar los parametros de la regla 4
     ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA, poblacion = binarizacion(x, n_individuos, longitud)
     print(f'x: {x}')
     print(f'poblacion :{poblacion}')
-    poblacion_inicial = generacion_individuos(configuracion, corrida, experimento, n_individuos, degradacion, ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA) 
+    poblacion_inicial = generacion_individuos(configuracion, corrida, experimento, n_individuos, degradacion, ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA, pool_hilos) 
     # --------------------- Eliminar la carpeta experimento: ------------------------------------#
     # ----------------------La info se encuentra en la lista de objetos poblacion_inicial--------#
     ruta_actual = os.getcwd()
@@ -199,10 +153,10 @@ def evolucion_diferencial(configuracion, corrida, n_generaciones, n_individuos, 
     # ------------------- Creación del archivo csv y registro de la poblacion inicial y el mejor ----------#
     ruta_actual = os.getcwd()                                                    # Obtenemos la ruta actual
     ruta_archivo_csv = os.path.abspath(os.path.join(ruta_actual,'..','..'))      # Ruta del archivo csv
-    ruta_archivo_csv = os.path.abspath(os.path.join(ruta_archivo_csv, f'ArchivosConfiguracion_{configuracion}',f'Corrida{corrida}'))
+    ruta_archivo_csv = os.path.abspath(os.path.join(ruta_archivo_csv, f'ArchivoConfiguracion_{configuracion}',f'Corrida{corrida}'))
     with open(ruta_archivo_csv+'_resultados.csv','w',newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['No.Generacion','Hijos','Poblacion','Mejor_alpha','Mejor_vector_pop','Mejor_vector_dist','Mejor_aptitud'])
+        writer.writerow(['No.Generacion','Hijos','Poblacion','Mejor_alpha','Mejor_vector_pop','Mejor_vector_dist','Mejor_aptitud', 'Punto_critico', 'R_conectividad', 'Promedio'])
         writer.writerow([
             0,
             str([]),
@@ -221,9 +175,9 @@ def evolucion_diferencial(configuracion, corrida, n_generaciones, n_individuos, 
         u = generacion_hijos(x, n_individuos, F = F, CR = CR)             # hijos como listas reales
         n_hijos = len(u)
         ALPHA_HIJO,VECTOR_POPULARIDAD_HIJO,VECTOR_DISTANCIA_HIJO, generacion=binarizacion(u,n_hijos,longitud)# Binarización de los hijos
-        hijos = generacion_individuos(configuracion, corrida, k, n_individuos, degradacion, ALPHA_HIJO, VECTOR_POPULARIDAD_HIJO, VECTOR_DISTANCIA_HIJO)
+        hijos = generacion_individuos(configuracion, corrida, k, n_individuos, degradacion, ALPHA_HIJO, VECTOR_POPULARIDAD_HIJO, VECTOR_DISTANCIA_HIJO,pool_hilos)
         # --------------------- Eliminar la carpeta experimento: ------------------------------------#
-        # ----------------------La info se encuentra en la lista de objetos (hijos) -----------------#
+        # ----------------------La info se encuentra en la lista de objetos poblacion_inicial--------#
         ruta_actual = os.getcwd()
         ruta_experimento = os.path.abspath((os.path.join(ruta_actual,'..','..',f'Configuracion_{configuracion}',f'Corrida{corrida}',f'Experimento{k}')))
         shutil.rmtree(ruta_experimento)
@@ -274,19 +228,20 @@ def evolucion_diferencial(configuracion, corrida, n_generaciones, n_individuos, 
 #########################################################################################################
 # F U N C I O N   Q U E   C O N F I G U R A   C A D A   P R U E B A   P A R A   L A S   C O R R I D A S #
 #########################################################################################################
-def pruebas(configuracion, n_corridas, n_generaciones, n_individuos, degradacion, longitud, F, CR):
+def pruebas(configuracion, n_corridas, n_generaciones, n_individuos, degradacion, longitud, F, CR, pool_hilos):
     ruta_actual = os.getcwd()                                           # Obtenemos la ruta actual
-    ruta_grafica = os.path.abspath(os.path.join(ruta_actual,'..','..',f'ArchivosConfiguracion_{configuracion}'))
-    os.makedirs(ruta_grafica, exist_ok=True)                            # Crear carpeta ArchivosConfiguracion_i
+    ruta_grafica = os.path.abspath(os.path.join(ruta_actual,'..','..',f'ArchivoConfiguracion_{configuracion}'))
+    os.makedirs(ruta_grafica, exist_ok=True)                             # Crear carpeta de resultados
     #------- E J E C U T A R   V A R I A S   C O R R I D A S   D E L   A L G O R I T M O -----#
     aptitudes = []
     plt.figure()
     for j in range(n_corridas):
-        individuo_optimo, mejor_por_generaciones = evolucion_diferencial(configuracion, j+1, n_generaciones,n_individuos,longitud,degradacion, F, CR)
+        individuo_optimo, mejor_por_generaciones = evolucion_diferencial(configuracion, j+1, n_generaciones,n_individuos,longitud,degradacion, F, CR, pool_hilos)
         aptitudes.append(individuo_optimo[3])
         eje_x = [j for j in range(n_generaciones + 1)]
         eje_y = [k[3] for k in mejor_por_generaciones]
         plt.plot(eje_x, eje_y, label = f'corrida{j+1}')                    # Graficar el mejor en cada generacion de la corrida
+
     plt.title('Evolución de la aptitud en múltiples corridas')
     plt.xlabel('Generación')
     plt.ylabel('Aptitud')
@@ -309,46 +264,46 @@ def pruebas(configuracion, n_corridas, n_generaciones, n_individuos, degradacion
 ###################################################################################################
 #--------(1) P R U E B A S   P A R A   L O S   5   P A R A M E T R O S   D I S T I N T O S -------#
 F = [0.2, 0.4]              #[f1, f2]
-CR = [0.5,0.7]              #[cr1, cr2]
+CR = [0.5]              #[cr1, cr2]
 n_corridas = [5]            #[cor1, cor2]
 n_individuos = [5]          #[ind1, ind2]
 n_generaciones = [3]        #[gen1, gen2]
 longitud = 14
 degradacion = 'Ataques'
+pool_hilos = 1
 configuracion = len(F)*len(CR)*len(n_corridas)*len(n_individuos)*len(n_generaciones) 
 #--------- Iniciar con el numero de la primer configuracion en caso de que se detenga ------------#
 tiempos = []
-k = 1
+#for k in range(1, configuracion+1):
+k = 1 
 for f in F:
     for cr in CR:
         for cor in n_corridas:
             for ind in n_individuos:
                 for gen in n_generaciones:
                     inicio = time.perf_counter()
-                    pruebas(configuracion=k, n_corridas=cor, n_generaciones=gen, n_individuos=ind, degradacion=degradacion, longitud=longitud, F=f, CR=cr)
+                    pruebas(configuracion=k, n_corridas=cor, n_generaciones=gen, n_individuos=ind, degradacion=degradacion, longitud=longitud, F=f, CR=cr, pool_hilos=pool_hilos)
                     fin = time.perf_counter()
                     duracion = fin - inicio
                     minutos = duracion / 60
                     tiempos.append({'Configuracion':k,'Corrida':cor, 'Generaciones':gen, 'Individuos':ind, 'F':f, 'CR':cr, 'Tiempo_Segundos':duracion, 'Tiempo_minutos':minutos})
-                    #--------------------- Borrar carpetas de las corridas------------------------#
+                    # ---------- Eliminar capetas de las corridas de cada configuracion ----------#
                     ruta_actual = os.getcwd()
                     ruta_configuracion = os.path.abspath((os.path.join(ruta_actual,'..','..',f'Configuracion_{k}')))
                     shutil.rmtree(ruta_configuracion)
                     k += 1
 #------------------------ Aqui terminan de ejecutarse las configuraciones ------------------------#
 df_tiempos = pd.DataFrame(tiempos)                     # Preparar para guarda en una archivo csv
+print(df_tiempos)
 ruta_actual = os.getcwd()
 ruta_archivo = os.path.abspath(os.path.join(ruta_actual, '..', '..'))
-ruta_tiempos = os.path.join(ruta_archivo,'tiempos.csv')
-with open(ruta_tiempos,'w',newline='') as f:           # Guardar en cvs
-    df_tiempos.to_csv(f, index=False)
-datos = [[] for entrada in range(configuracion)]       # Extraer informacion de cada carpeta de configuracion
-print(datos)
+df_tiempos.to_csv(ruta_archivo+'tiempos.csv', index=False)
+datos = [[] for entrda in range(configuracion)]        # Extraer informacion de cada carpeta de configuracion
 #-----------------(2) Obtención de la mejor aptitud de cada corrida ------------------------------#
 for a in range(1, configuracion + 1):
     for b in n_corridas:                               # Obtener las corridas que correponden a cada configuracion
         for c in range(1 , b + 1):
-            ruta_archivo_corrida = os.path.join(ruta_archivo, f'ArchivosConfiguracion_{a}', f'Corrida{c}_resultados.csv')
+            ruta_archivo_corrida = os.path.join(ruta_archivo, f'ArchivoConfiguracion_{a}', f'Corrida{c}_resultados.csv')
             with open(ruta_archivo_corrida, newline="", encoding="utf-8") as f:
                 reader = list(csv.reader(f))
                 ultima_fila = reader[-1]
@@ -367,7 +322,6 @@ for f in F:
                     for gen in n_generaciones:
                         df_configuraciones[f'F={f}\nCR={cr}\nCorridas={cor}\nIndividuos={ind}\nGeneraciones={gen}'] = datos[c]
                         c +=1
-plt.figure(figsize=(30,8))
 df_config = df_configuraciones.melt(var_name='Configuracion', value_name='Aptitud')
-ax =sns.boxplot(x='Configuracion', y='Aptitud', hue='Configuracion',data=df_config, palette='Set2')
+ax =sns.boxplot(x='Configuracion', y='Aptitud', data=df_config,hue='Configuracion', palette="Set2")
 plt.savefig(ruta_cajas, dpi=300, bbox_inches='tight')
