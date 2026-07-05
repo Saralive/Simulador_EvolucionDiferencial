@@ -1,7 +1,7 @@
 
 import sys
 import networkx as nx
-import chardet
+import chardet                   # Windows
 
 def getProperties(G):
     avCl = nx.average_clustering(G)
@@ -12,7 +12,7 @@ def getProperties(G):
     properties = [avCl,nCom,order,diam,avSPL]
     return properties
 
-#--( Se aggrego esta funcion para windows )---#
+# Se aggrego esta funcion para Windows
 #def detect_encoding(path):
 #    with open(path, 'rb') as f:
 #        raw = f.read()
@@ -22,16 +22,14 @@ if __name__ == "__main__":
     if len(sys.argv) != 3:
         print("Please supply a file name")
         raise SystemExit(1)
-    #f = open(sys.argv[1],'r',encoding='utf-16-le')  #para windows terminal no funciona
+    #f = open(sys.argv[1],'r',encoding='utf-16-le')  #windows terminal
     f = open(sys.argv[1],'r',encoding='utf-8')  #linux terminal
     lines = f.readlines()                       #linux terminal
     f.close()                                   #linux terminal
-
-    #--- Se agrego el detector de idioma para windows--#
-    #encoding = detect_encoding(sys.argv[1])
-    #with open(sys.argv[1], 'r', encoding=encoding) as f:
-    #    lines = f.readlines()
-
+    # Se agrego el detector de idioma para windows
+    #encoding = detect_encoding(sys.argv[1])              # Windows
+    #with open(sys.argv[1], 'r', encoding=encoding) as f: # Windows
+    #    lines = f.readlines()                            # Windows
     fd = open("datos-"+sys.argv[1],'w')
     fd.write('#cicle\tavCl\tcomponents\tdiam\taspl\torder\n')
     G = nx.read_adjlist("graph.adjlist", nodetype=int)

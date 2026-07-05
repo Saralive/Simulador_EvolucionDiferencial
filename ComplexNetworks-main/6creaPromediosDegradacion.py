@@ -7,7 +7,7 @@ import networkx as nx
 import networkx.algorithms.community as nx_comm
 import numpy as np
 #import configPaths_opt
-import configFormacion_opt
+import configuracion
 import sys
 
 DEGRADACION_DIR = sys.argv[3]
@@ -33,7 +33,8 @@ def loadSequence(sFile):
 if __name__ == "__main__":
 	ejemplo_dir = DEGRADACION_DIR #este es el directorio que recorrere recursivamente
 	for nombre_directorio, directorios, ficheros in os.walk(ejemplo_dir):#recorro recursivamente un directorio
-		if ("1" in directorios and "2" in directorios and "3" in directorios):
+		#if ("1" in directorios and "2" in directorios and "3" in directorios):
+		if any(d.isdigit() for d in directorios):
 			print(nombre_directorio)
 			ATTRs=[]
 			MUATTRs=[]
@@ -43,7 +44,7 @@ if __name__ == "__main__":
 			DIAMETERs=[]
 			RELATIVE_ORDERs=[]
 			MODULARITYs=[]
-			for contador in range(configFormacion_opt.EJECUCIONES):#recorro las carpetas 1,2,3...
+			for contador in range(configuracion.EJECUCIONES):#recorro las carpetas 1,2,3...
 				archivo=open(nombre_directorio+"/"+str(contador+1)+"/degradationData.txt","r")
 				lineas=archivo.readlines()
 				archivo.close()

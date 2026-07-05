@@ -2,7 +2,7 @@
 import sys
 import networkx as nx
 import collections
-import configDegradacion_opt
+import configuracion
 
 def create_datafile():
     """Crea el archivo donde se almacenarán los datos de la degradación"""
@@ -89,7 +89,7 @@ def hub_degradation():
         G.remove_node(target_node)
         deleted_nodes.append(target_node)
         cont += 1
-        if ((cont == configDegradacion_opt.SAVE_STEP) or (G.order()==1)):
+        if ((cont == configuracion.SAVE_STEP) or (G.order()==1)):
             graph_properties(G)
             cont = 0
     with open (ruta+'AttackSequence.txt','w') as seq:

@@ -1,8 +1,7 @@
 import os
 import pandas as pd
 from pathlib import Path
-import configFormacion_opt
-import configDegradacion_opt
+import configuracion
 
 ######################################################################################################
 #        L O S   I N D I V I D U O S   E N   E S T E   E X P E R I M E N T O   S O N   L A S         #
@@ -10,13 +9,13 @@ import configDegradacion_opt
 ######################################################################################################
 
 class Individuo:
-    def __init__(self,individuo_dir,ALPHA,VECTOR_POPULARIDAD,VECTOR_DISTANCIA,DEGRADACION,
-                 R1 = 0, R2 = 0, R3 = 0, R4 = 0): #LISTAS O DICC PARA VARIOS ALG.ENCAMIN/TAM_ENLACES/DEGRACION
+    def __init__(self,i, individuo_dir,ALPHA,VECTOR_POPULARIDAD,VECTOR_DISTANCIA,DEGRADACION,
+                 R1 = 0, R2 = 0, R3 = 0, R4 = 0):
         #################################### R U T A S ###############################################
         self.INDIVIDUO_DIR = Path(individuo_dir)
-        self.FORMACION_DIR = os.path.join(Path(individuo_dir),'Formacion')
-        self.DEGRADACION_DIR = os.path.join(Path(individuo_dir)/'Degradacion')
-        ############ P A R A M E T R O S   D E L   A L G O R I T M O   E V O L U T I V O #############
+        self.FORMACION_DIR = os.path.join(Path(individuo_dir),'Formacion',f'Individuo{i}')
+        self.DEGRADACION_DIR = os.path.join(Path(individuo_dir),'Degradacion',f'Individuo{i}')
+        ############ P A R A M E T R O S   D E L   A L G O R I T M O   G E N E T I C O ###############
         #------------------------------------ R E G L A  4 ------------------------------------------#
         self.ALPHA = ALPHA                                                   # 0 < = alfa < = 1
         self.VECTOR_POPULARIDAD = VECTOR_POPULARIDAD                         # Ambos vectores deben
@@ -29,23 +28,23 @@ class Individuo:
         self.PROMEDIO = R4
 
     ####### < P U N T O   C R Í T I C O  Y  R O B U S T E Z   D E   C O N E C T I V I D A D > ########
-    def robustez(self):#(self, DEGRADACION)
+    def robustez(self):
         #---------(1) RUTAS DE LAS CARPETAS DE ATAQUES Y FALLAS -------------------------------------#
         if self.DEGRADACION == 'Ataques':
             RUTA_DEGRADACION = os.path.join(self.DEGRADACION_DIR,'Ataques')
         elif self.DEGRADACION == 'Fallas':
             RUTA_DEGRADACION = os.path.join(self.DEGRADACION_DIR,'Fallas')
         #---------(2) ABRE TODOS LOS ARCHIVOS datos-promedio.csv y attr-promedio.csv ----------------#
-        for regla in configFormacion_opt.REGLAS:
-            for red in configFormacion_opt.RED:
+        for regla in configuracion.REGLAS:
+            for red in configuracion.RED:
                 if red == "anillo":
-                    nombre_red = "anillo" + str(configFormacion_opt.NODOS_ANILLO)
+                    nombre_red = "anillo" + str(configuracion.NODOS_ANILLO)
                 elif red == "malla":
-                    nombre_red = f"malla{configFormacion_opt.ROWS}x{configFormacion_opt.COLUMNS}"
+                    nombre_red = f"malla{configuracion.ROWS}x{configuracion.COLUMNS}"
                 else:
                     print(f" Tipo de red desconocido, saltando: {red}")
                     continue
-                for ruteo in configFormacion_opt.ROUTING:
+                for ruteo in configuracion.ROUTING:
                     routing = "x"
                     if ruteo == "COMPASS-ROUTING":
                         routing = "CR"
@@ -56,15 +55,16 @@ class Individuo:
                     else:
                         print(f" Algoritmo de ruteo desconocido, saltando: {ruteo}")
                         continue
-                    for long_enlace in configFormacion_opt.LONG_ENLACES:
+                    for long_enlace in configuracion.LONG_ENLACES:
                         # Obtener las rutas de los archivos csv de la carpeta de degradacion
                         RUTA_CSV = os.path.join(RUTA_DEGRADACION,nombre_red,f'R{regla}',routing,f'D{long_enlace}','datos-promedio.csv')
                         RUTA_ATTR_CSV = os.path.join(RUTA_DEGRADACION,nombre_red,f'R{regla}',routing,f'D{long_enlace}','attr-promedio.csv')
                         data = pd.read_csv(RUTA_CSV)                  # Cargar los datos en una tabla de pandas
+                        #print(f'data: {data}')
                         #['avg_clustering','aslp','avg_diameter','rolcc','avg_assot'] # Nombres de las columnas
                         data_NLCC = data['rolcc']
-                        tam_grafo = configFormacion_opt.ROWS*configFormacion_opt.COLUMNS
-                        SAVE_STEP = configDegradacion_opt.SAVE_STEP
+                        tam_grafo = configuracion.ROWS*configuracion.COLUMNS
+                        SAVE_STEP = configuracion.SAVE_STEP
                         #---------------------(3) CALCULO DEL PUNTO CRITICO EN LA FUNCION ------------------------------#
                         valor_critico, indice_critico, fraccion_critica = punto_critico(data_NLCC, SAVE_STEP, tam_grafo)
                         self.PUNTO_CRITICO = fraccion_critica
@@ -91,3 +91,16 @@ def R_conectividad(data):
     suma = sum(data)
     divisor = len(data)+1
     return round(suma/divisor,2)
+
+class IndividuoAlgoritmo:
+    def __init__(self,ID,ALPHA,VECTOR_POPULARIDAD,VECTOR_DISTANCIA,R1 = 0, R2 = 0, R3 = 0, R4 = 0):
+        #################################### R U T A S ###############################################
+        self.ID = ID
+        self.ALPHA = ALPHA                                            # 0 < = alfa < = 1
+        self.POPULARIDAD = VECTOR_POPULARIDAD                         # Ambos vectores deben
+        self.DISTANCIA   = VECTOR_DISTANCIA                           # tener la misma longitud
+        ######################### A P T I T U D   D E L   I N D I V I D U O  #########################
+        self.CONECTIVIDAD = R1
+        self.PUNTO_CRITICO = R2
+        self.COMUNICACION = R3
+        self.PROMEDIO = R4

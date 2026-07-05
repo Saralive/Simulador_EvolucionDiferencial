@@ -14,18 +14,19 @@ class ComplexNetwork(Model):
     """La clase ComplexNetwork desciende de la clase Model e implementa los metodos init() y  
         receive()"que en la clase madre se definen como abstractos"""
 
-    def __init__(self,main,numEnlacesDinamicos,maximasConexiones,num_paquetes,algoritmoEncaminamiento,regla,vector_popularidad,vector_distancia,alpha,log_file):#constructor de la clase ComplexNetwork
+    def __init__(self,main,numEnlacesDinamicos,maximasConexiones,num_paquetes,regla,algoritmoEncaminamiento,p,q, alpha, vect_popularidad, vect_distancia):#constructor de la clase ComplexNetwork
         self.__main=main
         self.__numEnlacesDinamicos=numEnlacesDinamicos
         self.__maximoConexionesPermitidas=maximasConexiones
         self.__num_paquetes=num_paquetes
         self.__encaminamiento=Encaminamiento()
-        self.__algoritmoEncaminamiento=algoritmoEncaminamiento
         self.__regla=regla
-        self.__vector_popularidad=vector_popularidad
-        self.__vector_distancia=vector_distancia
+        self.__algoritmoEncaminamiento=algoritmoEncaminamiento
+        self.__p=p
+        self.__q=q
         self.__alpha=alpha
-        self.__logFile = log_file
+        self.__vect_popularidad=vect_popularidad
+        self.__vect_distancia=vect_distancia
         
     def init(self):
         self.contadorCiclos=1#contador que indica el ciclo en el que se encuentra la simulación
@@ -37,11 +38,12 @@ class ComplexNetwork(Model):
         self.paquetes=[]#lista de paquetes exploradores enviados, servirá para buscar rutas hacia mis posibles candidatos a conexión
         self.paquetesRegreso=0#contador de paquetes exploradores que han regresado a mi, después de explorar la red
         self.enlacesDinamicos=[]#lista de enlaces dinámicos que tengo
+        self.enlacesDinamicosDict={}#diccionario para búsquedas O(1) de enlaces por id
         self.vecinosConectadosDinamicos=[]#lista de id´s de los nodos con los que estoy conectado mediante mis enlaces dinámicos
-        self.mr = [] #Matriz de rutas 
+        self.matrizRutas = []
         self.f_n = {} #Diccionario de frecuencia de visita a los nodos que no son mis vecinos, mediante mis paquetes exploradores
         self.f_e = {} #Diccionario de frecuencia de uso de mis enlaces dinámicos
-        self.listaNodosSolicitados=[]#lista de id´s de nodos solicitados para conectarme con ellos en un ciclo en particular
+        self.listaNodosSolicitados=set()#lista de id´s de nodos solicitados para conectarme con ellos en un ciclo en particular
         self.numeroSolicitudes=0#número de solicitudes hechas por mi en un ciclo de recableado
         self.conexionesAceptadas=0#numero de conexiones que he aceptado en la simulación
         self.neighborsPendientes=[]#lista de vecinos que voy a agregar en la etapa de recableado, se da en los nodos destino (los que aceptan solicitudes)
@@ -81,10 +83,17 @@ class ComplexNetwork(Model):
                     nextStep = self.__encaminamiento.Compass_Routing(self.id,neighborsTodos,new_package.destino,self.__main)
                     #print("soy",self.id,"genero el paquete",self.paquetesRegreso,"que va a dirigido a",new_package.destino,"en el tiempo",(event.time+1.0),"lo mando hacia",nextStep)
                     new_package.ruta.append(self.id)#agrego a la ruta del paquete mi id 
-                elif(self.__algoritmoEncaminamiento=="RANDOM-WALK"):
+                elif(self.__algoritmoEncaminamiento in ("RANDOM-WALK","RW-DEGREE","RW-INVERSE","RW-NODE2VEC")):
                     new_package.distanciaMaxima=random.randint(2,self.diametroGrafo)#la distancia maxima esta comprendida entre [2,diametroGrafo]
-                    nextStep = self.__encaminamiento.Random_Walk(self.id,neighborsTodos)
-                    #print("soy",self.id,"genero el paquete",self.paquetesRegreso,"que va a distancia",new_package.distanciaMaxima,"en el tiempo",(event.time+1.0),"lo mando hacia",nextStep,"el diametro de la red es:",event.package.diametro) 
+                    if(self.__algoritmoEncaminamiento=="RANDOM-WALK"):
+                        nextStep = self.__encaminamiento.Random_Walk(self.id,neighborsTodos)
+                    elif(self.__algoritmoEncaminamiento=="RW-DEGREE"):
+                        nextStep = self.__encaminamiento.Random_Walk_Degree(self.id,neighborsTodos,self.__main.graph)
+                    elif(self.__algoritmoEncaminamiento=="RW-INVERSE"):
+                        nextStep = self.__encaminamiento.Random_Walk_Inverse(self.id,neighborsTodos,self.__main.graph)
+                    elif(self.__algoritmoEncaminamiento=="RW-NODE2VEC"):
+                        nextStep = self.__encaminamiento.Random_Walk_Node2Vec(self.id,neighborsTodos,self.__main.graph,prev=None,p=self.__p,q=self.__q)
+                    #print("soy",self.id,"genero el paquete",self.paquetesRegreso,"que va a distancia",new_package.distanciaMaxima,"en el tiempo",(event.time+1.0),"lo mando hacia",nextStep,"el diametro de la red es:",event.package.diametro)
                     new_package.ruta.append(self.id)#agrego a la ruta del paquete mi id
                 elif(self.__algoritmoEncaminamiento=="SHORTEST-PATH"):
                     new_package.destino=self.__encaminamiento.generaDestino(self.id,self.__main,neighborsTodos)
@@ -111,15 +120,12 @@ class ComplexNetwork(Model):
                     self.transmit(newevent)
 
         elif(event.name=="PACKAGE"):
-            if((event.package.distanciaMaxima > 1 and self.__algoritmoEncaminamiento=="RANDOM-WALK") or (event.package.destino!=self.id and self.__algoritmoEncaminamiento=="COMPASS-ROUTING")):
+            esRW = self.__algoritmoEncaminamiento in ("RANDOM-WALK","RW-DEGREE","RW-INVERSE","RW-NODE2VEC")
+            if((event.package.distanciaMaxima > 1 and esRW) or (event.package.destino!=self.id and self.__algoritmoEncaminamiento=="COMPASS-ROUTING")):
                 auxNeighbors=self.neighbors+self.vecinosConectadosDinamicos#Creo una copia de mi lista de vecinos
                 for n in event.package.ruta:#Descarto de la copia a todos los vecinos por los que ya paso el paquete
                     if n in auxNeighbors:
                         auxNeighbors.remove(n)
-                #if(self.__algoritmoEncaminamiento=="COMPASS-ROUTING"):
-                    #print("soy",self.id,"el paquete",event.package.idPaquete,"tiene origen:",event.package.sourceID,"destino:",event.package.destino,"auxNeighbors:",auxNeighbors,"vs",self.neighbors,"ruta",event.package.ruta)
-                #elif(self.__algoritmoEncaminamiento=="RANDOM-WALK"):
-                    #print("soy",self.id,"el paquete",event.package.idPaquete,"va a distancia",event.package.distanciaMaxima,"origen:",event.package.sourceID,",auxNeighbors:",auxNeighbors,"vs",self.neighbors,"ruta",event.package.ruta)
                 if(len(auxNeighbors)==0):#si ya no tengo a quien enviarle el paquete, por que son nodos ya visitados, mando ack, fase de BACKTRACK
                     event.package.ruta.append(self.id)#agrego a la ruta del paquete mi id
                     #print("soy",self.id,"ya no tengo a quien enviarle el paquete, ya llego a su destino, la ruta por la que paso es",event.package.ruta)
@@ -136,11 +142,19 @@ class ComplexNetwork(Model):
                     event.package.ruta.append(self.id)#agrego a la ruta del paquete mi id
                     if(self.__algoritmoEncaminamiento=="COMPASS-ROUTING"):
                         nextStep = self.__encaminamiento.Compass_Routing(self.id,auxNeighbors,event.package.destino,self.__main)
-                        #print("soy",self.id,"reenvio paquete",event.package.idPaquete,"proveniente de",event.package.sourceID,"a",nextStep,", su destino es",event.package.destino,"en el tiempo",(event.time+1.0),"ruta hasta ahora",event.package.ruta)
                     elif(self.__algoritmoEncaminamiento=="RANDOM-WALK"):
                         nextStep = self.__encaminamiento.Random_Walk(self.id,auxNeighbors)
                         event.package.distanciaMaxima-=1
-                        #print("soy",self.id,"reenvio paquete",event.package.idPaquete,"proveniente de",event.package.sourceID,"faltan",event.package.distanciaMaxima,"pasos, en el tiempo",(event.time+1.0),"lo mando hacia",nextStep,"ruta hasta ahora",event.package.ruta)   
+                    elif(self.__algoritmoEncaminamiento=="RW-DEGREE"):
+                        nextStep = self.__encaminamiento.Random_Walk_Degree(self.id,auxNeighbors,self.__main.graph)
+                        event.package.distanciaMaxima-=1
+                    elif(self.__algoritmoEncaminamiento=="RW-INVERSE"):
+                        nextStep = self.__encaminamiento.Random_Walk_Inverse(self.id,auxNeighbors,self.__main.graph)
+                        event.package.distanciaMaxima-=1
+                    elif(self.__algoritmoEncaminamiento=="RW-NODE2VEC"):
+                        prev = event.package.ruta[-2] if len(event.package.ruta) >= 2 else None
+                        nextStep = self.__encaminamiento.Random_Walk_Node2Vec(self.id,auxNeighbors,self.__main.graph,prev=prev,p=self.__p,q=self.__q)
+                        event.package.distanciaMaxima-=1
                     newevent = Event("PACKAGE", event.time + 1.0, nextStep, self.id, event.package)            
                     self.transmit(newevent)
             else:
@@ -166,7 +180,6 @@ class ComplexNetwork(Model):
                     event.package.ruta.pop(0)#elimino el primer elemento de la lista
                     newevent = Event("ACK", event.time + 1.0, nextStep, self.id, event.package)            
                     self.transmit(newevent)
-                    #print("soy",self.id,"mando ACK a",event.package.sourceID,"mediante",nextStep,"en el tiempo",newevent.time,"ruta faltante hasta ahora",newevent.package.ruta)
         
         elif(event.name=="ACK"):
             if(len(event.package.ruta) > 0):#si todavía falta recorrer nodos en la ruta    
@@ -184,8 +197,8 @@ class ComplexNetwork(Model):
                         break
                 nodos=self.f_n.keys()#obtengo las claves de mi diccionario de f_n, las cuales representan los nodos visitados
                 ruta = []
+                conjuntoVecinos=set(self.neighbors+self.vecinosConectadosDinamicos)
                 for i in range(2,len(event.package.rutaAuxiliar)):#recorro cada uno de los nodos de la ruta, excepto mi id y mi vecino directo
-                    conjuntoVecinos=self.neighbors+self.vecinosConectadosDinamicos
                     """NOTA: es necesario poner la condicion event.package.rutaAuxiliar[i] not in self.neighbors por que el algoritmo de encaminamiento
                         puede hacer que los paquetes pasen por mis vecinos directos, y no debo considerarlos en f_n"""
                     if(event.package.rutaAuxiliar[i] not in conjuntoVecinos):
@@ -194,7 +207,7 @@ class ComplexNetwork(Model):
                             self.f_n[event.package.rutaAuxiliar[i]]=1
                         else:#si ya se encuentra el nodo en las claves del diccionario, lo incremento en 1 unidad
                             self.f_n[event.package.rutaAuxiliar[i]]+=1
-                self.mr.append(ruta)#agrego la ruta recorrida por el paquete a la matriz de rutas
+                self.matrizRutas.append(ruta)
                 #print("soy",self.id,"ya llegó de regreso el paquete",event.package.idPaquete,"la ruta usada original fue",event.package.rutaAuxiliar,"tiempo",event.time,"f_n:",self.f_n)
                 if(self.paquetesRegreso<self.__num_paquetes):
                     new_package=Paquete(self.id,self.paquetesRegreso)
@@ -205,10 +218,17 @@ class ComplexNetwork(Model):
                         nextStep = self.__encaminamiento.Compass_Routing(self.id,neighborsTodos,new_package.destino,self.__main)
                         #print("soy",self.id,"genero el paquete",self.paquetesRegreso,"que va a dirigido a",new_package.destino,"en el tiempo",(event.time+1.0),"lo mando hacia",nextStep)
                         new_package.ruta.append(self.id)#agrego a la ruta del paquete mi id 
-                    elif(self.__algoritmoEncaminamiento=="RANDOM-WALK"):
+                    elif(self.__algoritmoEncaminamiento in ("RANDOM-WALK","RW-DEGREE","RW-INVERSE","RW-NODE2VEC")):
                         new_package.distanciaMaxima=random.randint(2,self.diametroGrafo)#la distancia máxima esta comprendida entre [2,diametroGrafo]
-                        nextStep = self.__encaminamiento.Random_Walk(self.id,neighborsTodos)
-                        #print("soy",self.id,"genero el paquete",self.paquetesRegreso,"que va a distancia",new_package.distanciaMaxima,"en el tiempo",(event.time+1.0),"lo mando hacia",nextStep) 
+                        if(self.__algoritmoEncaminamiento=="RANDOM-WALK"):
+                            nextStep = self.__encaminamiento.Random_Walk(self.id,neighborsTodos)
+                        elif(self.__algoritmoEncaminamiento=="RW-DEGREE"):
+                            nextStep = self.__encaminamiento.Random_Walk_Degree(self.id,neighborsTodos,self.__main.graph)
+                        elif(self.__algoritmoEncaminamiento=="RW-INVERSE"):
+                            nextStep = self.__encaminamiento.Random_Walk_Inverse(self.id,neighborsTodos,self.__main.graph)
+                        elif(self.__algoritmoEncaminamiento=="RW-NODE2VEC"):
+                            nextStep = self.__encaminamiento.Random_Walk_Node2Vec(self.id,neighborsTodos,self.__main.graph,prev=None,p=self.__p,q=self.__q)
+                        #print("soy",self.id,"genero el paquete",self.paquetesRegreso,"que va a distancia",new_package.distanciaMaxima,"en el tiempo",(event.time+1.0),"lo mando hacia",nextStep)
                         new_package.ruta.append(self.id)#agrego a la ruta del paquete mi id
                     elif(self.__algoritmoEncaminamiento=="SHORTEST-PATH"):
                         new_package.destino=self.__encaminamiento.generaDestino(self.id,self.__main,neighborsTodos)
@@ -256,54 +276,53 @@ class ComplexNetwork(Model):
                             hayEnlacesLibres=True
                             clave=-1
                             #selecciono al candidato a conexión
-                            rule = Reglas(self.__regla,self.__vector_popularidad,self.__vector_distancia,self.__alpha,self.__logFile,self.f_n, self.paquetes, self.mr)
+                            rule = Reglas(self.__regla,self.f_n, self.__alpha, self.__vect_popularidad, self.__vect_distancia, self.matrizRutas)
                             clave = rule.seleccionar_candidato()
-                            if clave!= -1:
-                                distancia=-1
-                                if(self.__main.grafo!=3):#si no estoy trabajando en un anillo:
-                                    distancia=self.__encaminamiento.distancia(self.id,clave,self.__main)
-                                else:#si estoy trabajando en un anillo:
-                                    distancia=self.__encaminamiento.distanciaAnillo(self.id,clave,self.__main)
-                                if(distancia<=enlace.longitud):#el candidato seleccionado cumple con la restricción de distancia del enlace
-                                    #if(clave in self.neighbors or clave in self.vecinosConectadosDinamicos):
-                                        #print("no puede ser ese nodo esta en mis vecinos")
-                                    new_package=Paquete(self.id,0)#a este paquete se le puede agregar lo que sea
-                                    #busco entre las rutas de mis paquetes aquellas que me permiten llegar al destino
-                                    rutasCandidatas=[]#lista de todas las rutas que pasan por el nodo, de ellas buscare la de menor longitud
-                                    for i in self.paquetes:#recorro mi lista de paquetes
-                                        ruta=[]
-                                        if (clave in i.rutaAuxiliar):#si el nodo se encuentra en la ruta del i-ésimo paquete
-                                            for j in range(0,len(i.rutaAuxiliar)):#recorro toda la ruta
-                                                ruta.append(i.rutaAuxiliar[j])#agrego los nodos de la ruta hasta que llegue al destino
-                                                if(i.rutaAuxiliar[j]==clave):
-                                                    break
-                                            rutasCandidatas.append(ruta)#agrego la ruta a la lista de rutas candidatas
-                                    #busco la ruta de menor longitud que me permite llegar al destino
-                                    minimaLongitud=sys.maxsize
-                                    for i in rutasCandidatas:
-                                        if(len(i)<minimaLongitud):
-                                            new_package.ruta=i[:]
-                                            minimaLongitud=len(i)
-                                    new_package.rutaAuxiliar=new_package.ruta[:]#copio la ruta en rutaAuxiliar
-                                    #if len(new_package.ruta)>0:
+                                
+                            distancia=-1
+                            if(self.__main.grafo!=3):#si no estoy trabajando en un anillo:
+                                distancia=self.__encaminamiento.distancia(self.id,clave,self.__main)
+                            else:#si estoy trabajando en un anillo:
+                                distancia=self.__encaminamiento.distanciaAnillo(self.id,clave,self.__main)
+                            if(distancia<=enlace.longitud):#el candidato seleccionado cumple con la restricción de distancia del enlace
+                                #if(clave in self.neighbors or clave in self.vecinosConectadosDinamicos):
+                                    #print("no puede ser ese nodo esta en mis vecinos")
+                                new_package=Paquete(self.id,0)#a este paquete se le puede agregar lo que sea
+                                #busco entre las rutas de mis paquetes aquellas que me permiten llegar al destino
+                                rutasCandidatas=[]#lista de todas las rutas que pasan por el nodo, de ellas buscare la de menor longitud
+                                for i in self.paquetes:#recorro mi lista de paquetes
+                                    ruta=[]
+                                    if (clave in i.rutaAuxiliar):#si el nodo se encuentra en la ruta del i-ésimo paquete
+                                        for j in range(0,len(i.rutaAuxiliar)):#recorro toda la ruta 
+                                            ruta.append(i.rutaAuxiliar[j])#agrego los nodos de la ruta hasta que llegue al destino
+                                            if(i.rutaAuxiliar[j]==clave):
+                                                break
+                                        rutasCandidatas.append(ruta)#agrego la ruta a la lista de rutas candidatas
+                                #busco la ruta de menor longitud que me permite llegar al destino
+                                minimaLongitud=sys.maxsize
+                                for i in rutasCandidatas:
+                                    if(len(i)<minimaLongitud):
+                                        new_package.ruta=i[:]
+                                        minimaLongitud=len(i)
+                                new_package.rutaAuxiliar=new_package.ruta[:]#copio la ruta en rutaAuxiliar
+                                if len(new_package.ruta)>0:
                                     del new_package.ruta[0]#elimino mi id de la ruta principal
                                     nextStep=new_package.ruta[0]
-                                    self.listaNodosSolicitados.append(clave)
+                                    self.listaNodosSolicitados.add(clave)
                                     self.numeroSolicitudes+=1
                                     del new_package.ruta[0]#elimino el id al que le voy a enviar el mensaje de la ruta principal
                                     new_package.idEnlace=enlace.idEnlace#agrego al paquete el id del enlace dinamico que esta haciendo la solicitud
                                     #envío la solicitud al nodo con el que me quiero conectar mediante la ruta de menor longitud encontrada previamente
-                                    newevent = Event("SOLICITUD-CONEXION", event.time + 1.0, nextStep, self.id, new_package)
+                                    newevent = Event("SOLICITUD-CONEXION", event.time + 1.0, nextStep, self.id, new_package)            
                                     self.transmit(newevent)
                                     #if(self.__main.grafo!=3):
                                         #print("soy",self.id,"mando",newevent.name,"a",clave,"en el tiempo",newevent.time,"mediante mi enlace dinamico numero",enlace.idEnlace,"la distancia del enlace es",self.__encaminamiento.distancia(self.id,clave,self.__main),"la ruta a seguir es",new_package.rutaAuxiliar,"ahorita envio el mensaje a",nextStep)
                                     #else:
                                         #print("soy",self.id,"mando",newevent.name,"a",clave,"en el tiempo",newevent.time,"mediante mi enlace dinamico numero",enlace.idEnlace,"la distancia del enlace es",self.__encaminamiento.distanciaAnillo(self.id,clave,self.__main),"la ruta a seguir es",new_package.rutaAuxiliar,"ahorita envio el mensaje a",nextStep)
                                     #print("soy",self.id,"elimino a",clave,"de mi f_n")
-                                    with open(self.__logFile, "a", encoding="utf-8") as f:
-                                        f.write(f"f_n (después): {self.f_n}\n")
+
                                     del self.f_n[clave]#elimino al nodo de la lista de frecuencias para que no se considere en futuros ciclos
-                                    self.mr = [[x for x in sublista if x != clave] for sublista in self.mr]
+                                    self.matrizRutas = [[x for x in sublist if x!=clave] for sublist in self.matrizRutas]
                                     #print("soy",self.id,"mi f_n queda asi:",self.f_n)
                                     if(self.__regla==2):#si ejecuto r2 rompo el ciclo
                                         break
@@ -317,16 +336,12 @@ class ComplexNetwork(Model):
                         clavesF_e=list(self.f_e.keys())#obtengo las claves del diccionario previamente ordenado de frecuencias de enlaces dinamicos, en forma de lista
                         if(self.f_e[clavesF_e[0]]<self.frecEnlace):#si la frecuencia de uso del enlace es menor que el umbral self.frecEnlace, entonces busco el recableado
                             #print("soy",self.id,"el enlace a reconectar es el que tiene id",clavesF_e[0])
-                            enlaceReconectar=None
-                            for enlace in self.enlacesDinamicos:
-                                if(enlace.idEnlace==clavesF_e[0]):
-                                    enlaceReconectar=enlace
-                                    break
+                            enlaceReconectar=self.enlacesDinamicosDict[clavesF_e[0]]
                             clave=-1
                             #selecciono al candidato a conexión
-                            rule = Reglas(self.__regla,self.__vector_popularidad,self.__vector_distancia,self.__alpha,self.__logFile,self.f_n, self.paquetes, self.mr)
-                            clave = rule.seleccionar_candidato()   
-                            if clave!= -1:
+                            rule = Reglas(self.__regla,self.f_n, self.__alpha, self.__vect_popularidad, self.__vect_distancia, self.matrizRutas)
+                            clave = rule.seleccionar_candidato()
+                            if clave != -1: # and clave in self.f_n:                 
                                 nodoConexion=-1
                                 #reviso si se puede hacer el recableado:
                                 distancia=-1
@@ -334,7 +349,6 @@ class ComplexNetwork(Model):
                                     distancia=self.__encaminamiento.distancia(self.id,clave,self.__main)
                                 else:#si estoy trabajando en un anillo:
                                     distancia=self.__encaminamiento.distanciaAnillo(self.id,clave,self.__main)
-                                #if clave!= -1 and clave in self.f_n:
                                 if(self.f_n[clave]>=self.frecNodo and distancia<=enlaceReconectar.longitud):
                                     nodoConexion=clave
                                 if(nodoConexion!=-1):
@@ -345,7 +359,7 @@ class ComplexNetwork(Model):
                                     for i in self.paquetes:#recorro mi lista de paquetes
                                         ruta=[]
                                         if (nodoConexion in i.rutaAuxiliar):#si el nodo se encuentra en la ruta del i-esimo paquete
-                                            for j in range(0,len(i.rutaAuxiliar)):#recorro toda la ruta
+                                            for j in range(0,len(i.rutaAuxiliar)):#recorro toda la ruta 
                                                 ruta.append(i.rutaAuxiliar[j])#agrego los nodos de la ruta hasta que llegue al destino
                                                 if(i.rutaAuxiliar[j]==nodoConexion):
                                                     break
@@ -361,15 +375,15 @@ class ComplexNetwork(Model):
                                     nextStep=new_package.ruta[0]
                                     del new_package.ruta[0]#elimino el id al que le voy a enviar el mensaje de la ruta principal
                                     new_package.idEnlace=enlaceReconectar.idEnlace#agrego al paquete el id del enlace dinamico que esta haciendo la solicitud
-                                    self.listaNodosSolicitados.append(nodoConexion)
+                                    self.listaNodosSolicitados.add(nodoConexion)
                                     self.numeroSolicitudes+=1
                                     #envio la solicitud al nodo con el que me quiero conectar mediante la ruta de menor longitud encontrada previamente
-                                    newevent = Event("SOLICITUD-CONEXION", event.time + 1.0, nextStep, self.id, new_package)
+                                    newevent = Event("SOLICITUD-CONEXION", event.time + 1.0, nextStep, self.id, new_package)            
                                     self.transmit(newevent)
-                                        #if(self.__main.grafo!=3):#si no estoy trabajando en un anillo:
-                                            #print("soy",self.id,"mando",newevent.name,"a",nodoConexion,"en el tiempo",newevent.time,"mediante mi enlace dinamico numero",enlaceReconectar.idEnlace,"la distancia del enlace es",self.__encaminamiento.distancia(self.id,clave,self.__main),"la ruta a seguir es",new_package.rutaAuxiliar,"ahorita envio el mensaje a",nextStep)
-                                        #else:#si estoy trabajando en un anillo:
-                                            #print("soy",self.id,"mando",newevent.name,"a",nodoConexion,"en el tiempo",newevent.time,"mediante mi enlace dinamico numero",enlaceReconectar.idEnlace,"la distancia del enlace es",self.__encaminamiento.distanciaAnillo(self.id,clave,self.__main),"la ruta a seguir es",new_package.rutaAuxiliar,"ahorita envio el mensaje a",nextStep)
+                                    #if(self.__main.grafo!=3):#si no estoy trabajando en un anillo:
+                                        #print("soy",self.id,"mando",newevent.name,"a",nodoConexion,"en el tiempo",newevent.time,"mediante mi enlace dinamico numero",enlaceReconectar.idEnlace,"la distancia del enlace es",self.__encaminamiento.distancia(self.id,clave,self.__main),"la ruta a seguir es",new_package.rutaAuxiliar,"ahorita envio el mensaje a",nextStep)
+                                    #else:#si estoy trabajando en un anillo:
+                                        #print("soy",self.id,"mando",newevent.name,"a",nodoConexion,"en el tiempo",newevent.time,"mediante mi enlace dinamico numero",enlaceReconectar.idEnlace,"la distancia del enlace es",self.__encaminamiento.distanciaAnillo(self.id,clave,self.__main),"la ruta a seguir es",new_package.rutaAuxiliar,"ahorita envio el mensaje a",nextStep)
                                 #else:
                                     #print("soy",self.id,"no encontre a nadie con quien reconectarme, por lo tanto no hago nada")
                             #else:
@@ -424,7 +438,6 @@ class ComplexNetwork(Model):
                     else:
                         newevent = Event("RECHAZO-CONEXION", event.time + 1.0, nextStep, self.id, event.package)            
                         self.transmit(newevent)
-                        #print("soy",self.id,"yo no te solicité, pero ya no tengo conexiones disponibles por lo que",newevent.name,"con",event.package.rutaAuxiliar[0],"ahora le mando mensaje por la ruta",event.package.ruta,"ahorita el mensaje va a",nextStep,"conexionesAceptadas",self.conexionesAceptadas)
 
         elif(event.name=="ACEPTO-CONEXION"):
             if(len(event.package.ruta)>0):#si el mensaje no viene para mi, simplemente lo reenvio
@@ -439,11 +452,7 @@ class ComplexNetwork(Model):
                 #agrego a mi lista de solicitudes aprobadas el paquete recibido
                 self.solicitudesPendientes.append(event.package)
                 #busco el enlace que hizo la peticion
-                enlaceConexion=None
-                for enlace in self.enlacesDinamicos:
-                    if(enlace.idEnlace==event.package.idEnlace):
-                        enlaceConexion=enlace
-                        break
+                enlaceConexion=self.enlacesDinamicosDict[event.package.idEnlace]
                 #print("soy",self.id,"enlaceConexion=",enlaceConexion.idConectado,"mis vecinos son",self.neighbors,"vecinosConectadosDinamicos",self.vecinosConectadosDinamicos)        
                 if(enlaceConexion.idConectado!=-1):#si este es un recableado, envio DESCONEXION al nodo conectado mediante mi enlace dinamico para que me elimine de sus vecinos
                     self.numeroSolicitudes+=1
@@ -472,7 +481,6 @@ class ComplexNetwork(Model):
             #hago lo necesario para mandar el mensaje de contestacion
             newevent = Event("DESCONEXION-RECIBIDA", event.time + 1.0, event.source, self.id, None)            
             self.transmit(newevent)
-            #print("soy",self.id,"mando",newevent.name,"a",newevent.target,"en el tiempo",newevent.time)        
 
         elif(event.name=="DESCONEXION-RECIBIDA"):
             #print("soy",self.id,"ya llego",event.name,"que venia de",event.source,"en el tiempo",event.time)
@@ -536,32 +544,30 @@ class ComplexNetwork(Model):
                     #ahora hago la conexión de mi enlace dinámico con el nodo que acepto la conexión
                     #busco mi enlace dinámico que hizo la solicitud
                     for package in self.solicitudesPendientes:
-                        for enlace in self.enlacesDinamicos:
-                            if(enlace.idEnlace==package.idEnlace):
-                                #una vez que ya encontre el enlace, establezco la conexión
-                                enlace.libre=False#el enlace ahora ya no esta libre
-                                if(enlace.idConectado!=-1):
-                                    self.vecinosConectadosDinamicos.remove(enlace.idConectado)
-                                    print("r ",self.id," ",enlace.idConectado," ",package.rutaAuxiliar[len(package.rutaAuxiliar)-1]," ",self.contadorCiclos)
-                                    #actualizo el grafo networkx de la simulacion:
-                                    #print("soy",self.id,"DESCONEXION mis vecinos en el grafo antes del cambio son",list(self.__main.graph.neighbors(self.id)))
-                                    #print("aristas antes del cambio:",list(self.__main.graph.edges()))
-                                    self.__main.graph.remove_edge(int(self.id),int(enlace.idConectado))
-                                    #print("soy",self.id,"DESCONEXION con",enlace.idConectado,"ahora mis vecinos en el grafo son",list(self.__main.graph.neighbors(self.id)))
-                                    #print("aristas despues del cambio:",list(self.__main.graph.edges()))
-                                else:
-                                    print("c ",self.id," ",-1," ",package.rutaAuxiliar[len(package.rutaAuxiliar)-1]," ",self.contadorCiclos)
-                                #actualizo el grafo networkx de la simulacion:
-                                #print("soy",self.id,"CONEXION mis vecinos en el grafo antes del cambio son",list(self.__main.graph.neighbors(self.id)))
-                                #print("aristas antes del cambio:",list(self.__main.graph.edges()))
-                                self.__main.graph.add_edge(int(self.id),int(package.rutaAuxiliar[len(package.rutaAuxiliar)-1]))
-                                #print("soy",self.id,"CONEXION con",package.rutaAuxiliar[len(package.rutaAuxiliar)-1],"ahora mis vecinos son",list(self.__main.graph.neighbors(self.id)))
-                                #print("aristas despues del cambio:",list(self.__main.graph.edges()))
-                                enlace.idConectado=package.rutaAuxiliar[len(package.rutaAuxiliar)-1]
-                                self.vecinosConectadosDinamicos.append(enlace.idConectado)
-                                #print("soy",self.id,"mi enlace numero",enlace.idEnlace,"ya esta libre=",enlace.libre,"y me conecta con",enlace.idConectado)
-                                #print("soy",self.id,"mis vecinos van asi:",self.neighbors+self.vecinosConectadosDinamicos)
-                                break
+                        enlace = self.enlacesDinamicosDict[package.idEnlace]
+                        #una vez que ya encontre el enlace, establezco la conexión
+                        enlace.libre=False#el enlace ahora ya no esta libre
+                        if(enlace.idConectado!=-1):
+                            self.vecinosConectadosDinamicos.remove(enlace.idConectado)
+                            print("r ",self.id," ",enlace.idConectado," ",package.rutaAuxiliar[len(package.rutaAuxiliar)-1]," ",self.contadorCiclos)
+                            #actualizo el grafo networkx de la simulacion:
+                            #print("soy",self.id,"DESCONEXION mis vecinos en el grafo antes del cambio son",list(self.__main.graph.neighbors(self.id)))
+                            #print("aristas antes del cambio:",list(self.__main.graph.edges()))
+                            self.__main.graph.remove_edge(int(self.id),int(enlace.idConectado))
+                            #print("soy",self.id,"DESCONEXION con",enlace.idConectado,"ahora mis vecinos en el grafo son",list(self.__main.graph.neighbors(self.id)))
+                            #print("aristas despues del cambio:",list(self.__main.graph.edges()))
+                        else:
+                            print("c ",self.id," ",-1," ",package.rutaAuxiliar[len(package.rutaAuxiliar)-1]," ",self.contadorCiclos)
+                        #actualizo el grafo networkx de la simulacion:
+                        #print("soy",self.id,"CONEXION mis vecinos en el grafo antes del cambio son",list(self.__main.graph.neighbors(self.id)))
+                        #print("aristas antes del cambio:",list(self.__main.graph.edges()))
+                        self.__main.graph.add_edge(int(self.id),int(package.rutaAuxiliar[len(package.rutaAuxiliar)-1]))
+                        #print("soy",self.id,"CONEXION con",package.rutaAuxiliar[len(package.rutaAuxiliar)-1],"ahora mis vecinos son",list(self.__main.graph.neighbors(self.id)))
+                        #print("aristas despues del cambio:",list(self.__main.graph.edges()))
+                        enlace.idConectado=package.rutaAuxiliar[len(package.rutaAuxiliar)-1]
+                        self.vecinosConectadosDinamicos.append(enlace.idConectado)
+                        #print("soy",self.id,"mi enlace numero",enlace.idEnlace,"ya esta libre=",enlace.libre,"y me conecta con",enlace.idConectado)
+                        #print("soy",self.id,"mis vecinos van asi:",self.neighbors+self.vecinosConectadosDinamicos)
 
                 #propago mi PIF-CONEXION
                 conjuntoVecinos=self.neighbors+self.vecinosConectadosDinamicos
@@ -599,17 +605,13 @@ class ComplexNetwork(Model):
                             newevent = Event("PIF-EXPLORACION", self.clock+1.0, self.id, self.id, new_package)
                             self.transmit(newevent)
                             self.contadorCiclos+=1
-                            #print("soy",self.id,"COORDINADOR inicio el ciclo numero",self.contadorCiclos,"arrancando el PIF-EXPLORACION")
-                        #else:
-                            #print("soy",self.id,"COORDINADOR detuve la simulacion por que el diametro ya es 2")
-                    #else:
-                        #print("soy",self.id,"COORDINADOR doy por terminada la simulacion")
         
     def creaLongitudEnlacesDinamicos(self):
         for i in range(self.__numEnlacesDinamicos):
             enlace=Enlace(i,self.__main.tamEnlace)#aqui se puede cambiar facilmente la longitud de cada enlace
             self.f_e[enlace.idEnlace]=0#inicializo la frecuencia de uso del enlace dinamico en cero
             self.enlacesDinamicos.append(enlace)
+            self.enlacesDinamicosDict[enlace.idEnlace]=enlace
 
     def reiniciaPIF(self):
         self.visited=False
@@ -620,7 +622,7 @@ class ComplexNetwork(Model):
         self.paquetes.clear()
         self.paquetesRegreso=0
         self.f_n.clear()
-        self.mr.clear()
+        self.matrizRutas.clear()
         #reincio la frecuencia de mi enlaces dinamicos
         claves=self.f_e.keys()
         for i in claves:
@@ -630,3 +632,4 @@ class ComplexNetwork(Model):
         self.neighborsPendientes.clear()
         self.neighborsPendientesEliminacion.clear()
         self.solicitudesPendientes.clear()
+        self.__encaminamiento.clearShortestPathCache()

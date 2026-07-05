@@ -1,8 +1,7 @@
 
 import os
 import numpy as np
-#import configPaths_opt
-import configFormacion_opt
+import configuracion
 import sys
 
 RESULTADOS_DIR = sys.argv[2]
@@ -44,9 +43,9 @@ for nombre_directorio, directorios, ficheros in os.walk(RESULTADOS_DIR):#recorro
 						APL_1.append(float(APL))
 						DIAMETER_1.append(float(diam))	
 			#verifico que se hayan terminado todos los ciclos en el archivo:
-			if len(AVCLUST_1)<configFormacion_opt.CICLOS+1:
+			if len(AVCLUST_1)<configuracion.CICLOS+1:
 				#si no se ejecutaron todos los ciclos repito los datos del ultimo ciclo ejecutado hasta completar los 50 ciclos:
-				faltantes=configFormacion_opt.CICLOS+1-len(AVCLUST_1)
+				faltantes=configuracion.CICLOS+1-len(AVCLUST_1)
 				AVCLUST_1_FINAL=AVCLUST_1[len(AVCLUST_1)-1]
 				APL_1_FINAL=APL_1[len(APL_1)-1]
 				DIAMETER_1_FINAL=DIAMETER_1[len(DIAMETER_1)-1]
@@ -64,7 +63,7 @@ for nombre_directorio, directorios, ficheros in os.walk(RESULTADOS_DIR):#recorro
 		STDAVCL=[]
 		STDAPL=[]
 		STDDIAM=[]
-		for i in range(configFormacion_opt.CICLOS+1):
+		for i in range(configuracion.CICLOS+1):
 			AVGAVCL=0
 			AVGAPL=0
 			AVGDIAM=0
@@ -89,7 +88,7 @@ for nombre_directorio, directorios, ficheros in os.walk(RESULTADOS_DIR):#recorro
 			STDDIAM.append(np.std(stdDIAM))
 		datosPromedio=open(nombre_directorio+"/datos-promedio.csv","w")
 		datosPromedio.write("ciclo,avCl,aslp,dia,std_avCL,std_aspl,std_dia\n")
-		for i in range(configFormacion_opt.CICLOS+1):
+		for i in range(configuracion.CICLOS+1):
 			datosPromedio.write(str(i)+',')
 			datosPromedio.write('{0:.3f},'.format(AVCL_AVERAGE[i]))
 			datosPromedio.write('{0:.3f},'.format(APL_AVERAGE[i]))

@@ -2,26 +2,20 @@ import os
 import csv
 import numpy as np
 import pandas as pd
-import subprocess
 import matplotlib.pyplot as plt
 import seaborn as sns
-from pathlib import Path
 from individuo import Individuo, IndividuoAlgoritmo
-import threading
-import queue
 import time
 import shutil
 import random
 import copy
-from concurrent.futures import ThreadPoolExecutor
-import rewind
+import generarRedes
 import configGenetico
 #############################################################################################################
 #      F U N C I O N E S   P A R A   C O N S T R U I R   E L   A L G O R I T M O   G E N E R T I C O        #
 #############################################################################################################
 #--------------------------- G E N E R A C I Ó N   D E   I N D I V I D U O S -------------------------------#
-#---------------------------(  P A R A L E L I Z A D A   C O N   H I L O S  )-------------------------------#
-def generacion_individuos(configuracion,corrida, experimento, n_individuos, degradacion, ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA, pool_hilos):
+def generacion_individuos(configuracion,corrida, experimento, n_individuos, degradacion, ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA):
     configuracion = str(configuracion)
     corrida = str(corrida)
     experimento = str(experimento)
@@ -34,27 +28,8 @@ def generacion_individuos(configuracion,corrida, experimento, n_individuos, degr
     #-----------(2) CREAR LA CARPETA EXPERIMENTO -----------------------------------------------------------#
     ruta_experimento = os.path.join(ruta_corrida,f'Experimento{experimento}')
     os.makedirs(ruta_experimento, exist_ok=True)
-    #-----------(3) CREAR UNA CARPETA POR INDIVIDUO DEL EXPERIMENTO ----------------------------------------#
-    individuos = [None]*n_individuos                          # Lista de individuos
-    #-----------(4) CREAR UN POOL DE HILOS -----------------------------------------------------------------#
-    with ThreadPoolExecutor(max_workers=pool_hilos) as executor:
-        equipos = []
-        for i in range(1, n_individuos + 1):
-            #---(5) MAPEO DE LAS TAREAS DE FORMA DINAMICA ---------------------------------------#
-            f = executor.submit(
-                rewind.ejecutar_experimento, 
-                i, ruta_experimento, ruta_actual, degradacion, ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA)
-            equipos.append(f)
-        #-------(6) LANZAR LOS EQUIPOS DE HILOS -------------------------------------------------#
-        for f in equipos:
-            regla, id_individuo = f.result()
-            if regla is None:                                               # Si el hilo falló (retornó None)
-                print(f"Alerta: Guardando 'None' en el índice {id_individuo-1} debido al fallo anterior.")
-            individuos[id_individuo - 1] = regla                          
-            
-    return individuos                           
-    
-
+    individuos = generarRedes.ejecutar_experimento(n_individuos, ruta_experimento, ruta_actual, degradacion, ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA)
+    return individuos
 #---- G E N E R A C I O N   A L E A T O R I A   D E   L O S   P A R A M E T R O S   D E   L A   R E G L A   4
 def generacion_poblacion_inicial(n_individuos, longitud):
     x = []                      # X se convertira en una lista de objetos de individuos del algoritmo
@@ -75,26 +50,12 @@ def parametros_simulador(x):
         ALPHA.append(objeto_individuo.ALPHA)
         VECTOR_POPULARIDAD.append(objeto_individuo.POPULARIDAD)
         VECTOR_DISTANCIA.append(objeto_individuo.DISTANCIA)
-    return ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA         # Retorna tres listas
-def seleccion_torneo1(poblacion, n_individuos, n_padres, n_torneo = 3):
-    padres = []
-    torneos =[]
-    entradas = set(range(n_individuos))                # Lista de las posiciones de los individuos
-    for i in range(n_padres):
-        torneo = []
-        indices_torneo = random.sample(list(entradas),n_torneo) # Elegir aletoriamente n_torneo individuos distintos
-        torneo.extend([poblacion[j] for j in indices_torneo])   # Se toma una muestra de tamaño n_torneo (lista de objetos)
-        indice_padre = max(indices_torneo, key=lambda j: poblacion[j].COMUNICACION)
-        padre = poblacion[indice_padre]
-        entradas.remove(indice_padre)
-        padres.append(padre)
-        torneos.append(torneo)
-    return torneos, padres
+    return ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA          # Retorna tres listas
 
 def seleccion_torneo(poblacion, n_individuos, n_padres, n_torneo = 3):
     padres = []
     torneos =[]
-    entradas = set(range(n_individuos))                # Lista de las posiciones de los individuos
+    entradas = set(range(n_individuos))                         # Lista de las posiciones de los individuos
     for i in range(n_padres):
         torneo = []
         indices_torneo = random.sample(list(entradas),n_torneo) # Elegir aletoriamente n_torneo individuos distintos
@@ -124,14 +85,13 @@ def entero_flotante(decimal, a = 0, b = 1, prec = 4):
     numero = a + decimal*(b-a)/(2**n-1)
     return numero
 
-def Binario_A_Real(cromosoma, longitud, a = 0, b = 1):       # Real en el intervalo [a,b]
-    #n_bits = len(cromosoma)                        # Tamaño del cromosoma
+def Binario_A_Real(cromosoma, longitud, a = 0, b = 1): # Real en el intervalo [a,b]
     n_bits = longitud
-    entero = 0                                     # Contador para obtener el entero
-    for i in range(n_bits):                        # Recorre los bits del cromosoma
-        bit = cromosoma[n_bits - 1 -i]             # Accede al bit desde el final (derecha a izquierda)
-        entero += bit * (2**i)                     # Multiplica el bit actual por la potencia de 2
-    real = a + entero * (b - a) / (2**n_bits - 1)  # Interpolación lineal (entero a real)
+    entero = 0                                         # Contador para obtener el entero
+    for i in range(n_bits):                            # Recorre los bits del cromosoma
+        bit = cromosoma[n_bits - 1 -i]                 # Accede al bit desde el final (derecha a izquierda)
+        entero += bit * (2**i)                         # Multiplica el bit actual por la potencia de 2
+    real = a + entero * (b - a) / (2**n_bits - 1)      # Interpolación lineal (entero a real)
     return round(real, 3)
 
 def Real_A_Binario(real, n_bits, a = 0, b = 1):
@@ -147,23 +107,17 @@ def Real_A_Binario(real, n_bits, a = 0, b = 1):
             bit = 0
         binario.append(bit)
     return binario
-
 #############################################################################################################
 #                            A L G O R I T M O   G E N E T I C O   H I B R I D O                            #
 #############################################################################################################
-def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, degradacion, pool_hilos, n_torneo, n_padres, n_cruza, pc, pm_binaria):
+def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, degradacion, n_torneo, n_padres, n_cruza, pc, pm_binaria):
     # ----------<< E T A P A  1 >>: G E N E R A C I O N   D E   L A   P O B L A C I O N   I N I C I A L---------#
     experimento  = 0                                             # Carpeta de la población inicial <Experimento0>
     x = generacion_poblacion_inicial(n_individuos, longitud)
     ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA = parametros_simulador(x)
     print(x)
-    poblacion_inicial = generacion_individuos(configuracion, corrida, experimento, n_individuos, degradacion, ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA, pool_hilos) 
+    poblacion_inicial = generacion_individuos(configuracion, corrida, experimento, n_individuos, degradacion, ALPHA, VECTOR_POPULARIDAD, VECTOR_DISTANCIA) 
     print(poblacion_inicial)
-    #for i in range(n_individuos):
-    #    print(x[i].COMUNICACION)
-    #    print(x[i].PUNTO_CRITICO)
-    #    print(x[i].CONECTIVIDAD) 
-    #    print(x[i].PROMEDIO)
     # --------------------- Eliminar la carpeta Experimento: ------------------------------------#
     # ----------------------La info se encuentra en la lista de objetos poblacion_inicial y en x-#
     ruta_actual = os.getcwd()
@@ -237,12 +191,10 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
             #-------- << E T A P A  2 >> : C R E A C I Ó N   D E   L O S   H I J O S ---------------------------------#
             #--------------------< < CRUZA > > -----------------------------------------------------------------------#
             if random.uniform(0,1) < pc:                                                        # Probabalidad de cruza
-                #----- P A R T E   R E A L   ( C R U Z A   A R I T M E T I C A )--------------------------------------#
-                #Lambda = round(np.random.uniform(0,1), 3)                   # Aleatorio para la cruza aritmetica
                 #----- P A R T E   B I N A R I A  ( C R U Z A   E N   D O S   P U N T O S )---------------------------#
                 numeros = [i for i in range(1, longitud)]
                 numeros_alpha = [i for i in range(1, 6)]
-                ca = sorted(random.sample(numeros_alpha, n_cruza))                 # Puntos de cruza para el binario de alpha
+                ca = sorted(random.sample(numeros_alpha, n_cruza))           # Puntos de cruza para el binario de alpha
                 cp = sorted(random.sample(numeros, n_cruza))                 # Puntos de cruza del vector popularidad
                 cd = sorted(random.sample(numeros, n_cruza))                 # Puntos de cruza del vector distancia
                 ca_1 = min(ca)
@@ -260,8 +212,6 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
 
                 #----- C R E A C I O N   D E   L O S   O B J E T O S   H I J O S --------------------------------------#
                 #------> IndividuosAlgoritmo( ID, ALPHA ,VECTOR_POPULARIDAD , VECTOR_DISTANCIA )
-                #round(Lambda*padre_1.ALPHA + (1-Lambda)*padre_2.ALPHA, 3),
-                #round(Lambda*padre_2.ALPHA + (1-Lambda)*padre_1.ALPHA, 3),
                 hijo_1 = IndividuoAlgoritmo(id_hijo,
                                             padre_1.ALPHA[0:ca_1]+padre_2.ALPHA[ca_1:ca_2]+padre_1.ALPHA[ca_2:longitud],
                                             padre_1.POPULARIDAD[0:cp_1]+padre_2.POPULARIDAD[cp_1:cp_2]+padre_1.POPULARIDAD[cp_2:longitud],
@@ -283,8 +233,6 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
                 #-------------( Y no son cruzados ni mutados: no es necesario pasar a binario el alpha )--------#
                 poblacion_nueva.append(padre_1)
                 poblacion_nueva.append(padre_2)
-            # ES PROBABLE QUE VUELVAN A SER ELEGIDOS LOS MISMOS INDIVIDUOS DE LA GENERACION ANTERIOR
-            # HACER UN DROP EN X PARA QUE YA NO PUEDAN SER PADRE, YA SOBREVIVIERON
             id_hijo += 2
             print(len(poblacion_nueva))
             #---( S E   C O N S T R U Y O   L A   N U E V A   P O B L A C I O N   C O N   A L P H A   E N   B I N A R I O )---#
@@ -299,7 +247,6 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
                     alpha_binario.append(bit)
                 else:
                     alpha_binario.append(bit)
-            #if len(binario1) == longitud:
             hijo.ALPHA = alpha_binario
             #-----C O N V E R T I R   A L P H A   B I N A R I O   A   R E A L------#
             print(f'parte_real_hijo: {hijo.ALPHA}')
@@ -334,7 +281,7 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
         print(VECTOR_POPULARIDAD_HIJO)
         print(VECTOR_DISTANCIA_HIJO)
         print(poblacion_nueva)
-        evaluacion_hijos = generacion_individuos(configuracion, corrida, k, n_individuos, degradacion, ALPHA_HIJO, VECTOR_POPULARIDAD_HIJO, VECTOR_DISTANCIA_HIJO, pool_hilos) 
+        evaluacion_hijos = generacion_individuos(configuracion, corrida, k, n_individuos, degradacion, ALPHA_HIJO, VECTOR_POPULARIDAD_HIJO, VECTOR_DISTANCIA_HIJO) 
         print(f'evaluacion_hijos: {evaluacion_hijos}')
         # --------------------- Eliminar la carpeta experimento: ------------------------------------#
         # ----------------------La info se encuentra en la lista de objetos poblacion_inicial--------#
@@ -379,11 +326,10 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
         print(f'Nueva generacion: {x}')
         #------------- I N D I V I D U O   O P T I M O   P O R   C O R R I D A--------------#
     return mejores[n_generaciones], mejores
-
 #########################################################################################################
 # F U N C I O N   Q U E   C O N F I G U R A   C A D A   P R U E B A   P A R A   L A S   C O R R I D A S #
 #########################################################################################################
-def pruebas(configuracion, n_corridas, n_generaciones, n_individuos, degradacion, longitud, pool_hilos, n_torneo, n_padres, n_cruza, pc, pm_binaria):
+def pruebas(configuracion, n_corridas, n_generaciones, n_individuos, degradacion, longitud, n_torneo, n_padres, n_cruza, pc, pm_binaria):
     ruta_actual = os.getcwd()                                 # Obtenemos la ruta actual
     ruta_grafica = os.path.abspath(os.path.join(ruta_actual,'..','..',f'ArchivoConfiguracion_{configuracion}'))
     os.makedirs(ruta_grafica, exist_ok=True)                  # Crear carpeta de resultados
@@ -391,7 +337,7 @@ def pruebas(configuracion, n_corridas, n_generaciones, n_individuos, degradacion
     aptitudes = []
     plt.figure()
     for j in range(n_corridas):
-        individuo_optimo, mejor_por_generaciones = genetico(configuracion, j+1, n_generaciones, n_individuos, longitud, degradacion, pool_hilos, n_torneo, n_padres, n_cruza, pc, pm_binaria)
+        individuo_optimo, mejor_por_generaciones = genetico(configuracion, j+1, n_generaciones, n_individuos, longitud, degradacion, n_torneo, n_padres, n_cruza, pc, pm_binaria)
         aptitudes.append(individuo_optimo[3])
         eje_x = [j for j in range(n_generaciones + 1)]
         eje_y = [k[3] for k in mejor_por_generaciones]
@@ -419,7 +365,6 @@ def pruebas(configuracion, n_corridas, n_generaciones, n_individuos, degradacion
 ###################################################################################################
 # ------------------------------ < <  P A R A M E T R O S > > ------------------------------------#
 n_individuos = configGenetico.N_INDIVIDUOS
-pool_hilos = configGenetico.POOL_HILOS
 longitud = configGenetico.LONGITUD
 n_corridas = configGenetico.N_CORRIDAS
 degradacion = configGenetico.DEGRADACION
@@ -430,18 +375,18 @@ n_cruza = configGenetico.N_CRUZA
 pc = configGenetico.PROB_CRUZA
 pm_binaria = configGenetico.PROB_MUT
 configuracion = len(pc)*len(pm_binaria)
-#--------- Iniciar con el numero de la primer configuracion en caso de que se detenga ------------#
+#------------------- (1) CONFIGURACIONES DEL GENETICO PARA CADA PRUEBA ---------------------------#
 tiempos = []
 k = 1 
 for p in pc:
     for pb in pm_binaria:
         inicio = time.perf_counter()
-        pruebas(k, n_corridas, n_generaciones, n_individuos, degradacion, longitud, pool_hilos, n_torneo, n_padres, n_cruza, pc = p, pm_binaria=pb)
+        pruebas(k, n_corridas, n_generaciones, n_individuos, degradacion, longitud, n_torneo, n_padres, n_cruza, pc = p, pm_binaria=pb)
         fin = time.perf_counter()
         duracion = fin - inicio
         minutos = duracion / 60
         tiempos.append({'Configuracion':k,'Corrida':n_corridas, 'Generaciones':n_generaciones, 'Individuos':n_individuos, 'pc':{p},'pm_binario':{pb},'Tiempo_Segundos':duracion, 'Tiempo_minutos':minutos})
-        # ---------- Eliminar capetas de las corridas de cada configuracion ----------#
+        # ---------- Eliminar capetas de las corridas de cada configuracion ----------------------#
         ruta_actual = os.getcwd()
         ruta_configuracion = os.path.abspath((os.path.join(ruta_actual,'..','..',f'Configuracion_{k}')))
         shutil.rmtree(ruta_configuracion)
@@ -453,16 +398,15 @@ ruta_actual = os.getcwd()
 ruta_archivo = os.path.abspath(os.path.join(ruta_actual, '..', '..'))
 df_tiempos.to_csv(ruta_archivo+'tiempos.csv', index=False)
 datos = [[] for entrda in range(configuracion)]        # Extraer informacion de cada carpeta de configuracion
-#-----------------(2) Obtención de la mejor aptitud de cada corrida ------------------------------#
+#-----------------(2) OBTENCIÓN DE LA MEJOR APTITUD DE CADA CORRIDA ------------------------------#
 for a in range(1, configuracion + 1):
-    for b in [n_corridas]:                             # Obtener las corridas que correponden a cada configuracion
-        for c in range(1 , b + 1):
-            ruta_archivo_corrida = os.path.join(ruta_archivo, f'ArchivoConfiguracion_{a}', f'Corrida{c}_resultados.csv')
-            with open(ruta_archivo_corrida, newline="", encoding="utf-8") as f:
-                reader = list(csv.reader(f))
-                ultima_fila = reader[-1]
-                valor = float(ultima_fila[-4])
-                datos[a-1].append(valor)
+    for b in range(1, n_corridas + 1):
+        ruta_archivo_corrida = os.path.join(ruta_archivo, f'ArchivoConfiguracion_{a}', f'Corrida{b}_resultados.csv')
+        with open(ruta_archivo_corrida, newline="", encoding="utf-8") as f:
+            reader = list(csv.reader(f))
+            ultima_fila = reader[-1]
+            valor = float(ultima_fila[-4])
+            datos[a-1].append(valor)
 print(f'dato: {datos}')
 #------------------(3) Diagrama de cajas ---------------------------------------------------------#
 ruta_cajas = os.path.join(ruta_archivo, 'cajas.png')
@@ -470,9 +414,9 @@ print(f'ruta_cajas: {ruta_cajas}')
 df_configuraciones = pd.DataFrame()     # Crear un DataFrame mejor aptitud de cada corrida
 c = 0                                   # Posicion de la lista corresponendiente a la configuracion
 for p in pc:
-        for pb in pm_binaria:
-            df_configuraciones[f'pc={p}\npm_binario={pb}'] = datos[c]
-            c +=1
+    for pb in pm_binaria:
+        df_configuraciones[f'pc={p}\npm_binario={pb}'] = datos[c]
+        c +=1
 df_config = df_configuraciones.melt(var_name='Configuracion', value_name='Aptitud')
 ax =sns.boxplot(x='Configuracion', y='Aptitud', data=df_config,hue='Configuracion', palette="Set2")
 plt.savefig(ruta_cajas, dpi=300, bbox_inches='tight')

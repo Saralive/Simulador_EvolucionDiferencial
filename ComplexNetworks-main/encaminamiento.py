@@ -5,6 +5,11 @@ import networkx as nx
 
 class Encaminamiento:
 
+    def __init__(self):
+        self._coord_cache_grid = {}   # {nodeId: (x, y)}
+        self._coord_cache_ring = {}   # {nodeId: (x, y)}
+        self._sp_cache = {}           # {source: {dest: path}}
+
     #---ANILLO-------------------------------
 
     def distanciaAnillo(self,node1,node2,main):
@@ -15,13 +20,13 @@ class Encaminamiento:
         return d
 
     def getCoordinatesAnillo(self,nodeId,main):
-        #transformación de coordenadas polares a rectangulares:
-        angulo=math.radians((360/main.nodes)*nodeId)#la función math.radians() convierte los grados sexagesimales en radianes
-        x = 10*math.cos(angulo)#se asume que el anillo tiene radio 10
-        y = 10*math.sin(angulo)#se asume que el anillo tiene radio 10
-        coord = [x,y]
-        #print("soy",nodeId,"mis coordenadas son",coord)
-        return coord
+        if nodeId not in self._coord_cache_ring:
+            #transformación de coordenadas polares a rectangulares:
+            angulo=math.radians((360/main.nodes)*nodeId)
+            x = 10*math.cos(angulo)
+            y = 10*math.sin(angulo)
+            self._coord_cache_ring[nodeId] = (x,y)
+        return self._coord_cache_ring[nodeId]
 
     #---MALLA----------------------------------
 
@@ -32,10 +37,11 @@ class Encaminamiento:
         return d
 
     def getCoordinates(self,nodeId,main):
-        x = (nodeId-1)%main.rows
-        y = (nodeId-1)//main.columns
-        coord = [x,y]
-        return coord
+        if nodeId not in self._coord_cache_grid:
+            x = (nodeId-1)%main.rows
+            y = (nodeId-1)//main.columns
+            self._coord_cache_grid[nodeId] = (x,y)
+        return self._coord_cache_grid[nodeId]
 
     #---COMPASS ROUTING--------------------------
 
@@ -94,14 +100,65 @@ class Encaminamiento:
     #---SHORTEST PATH (DIJKSTRA)----------------
 
     def shortestPath(self,grafo,fuente,destino):
-        ruta = nx.shortest_path(grafo, source=fuente, target=destino, weight=None, method='dijkstra')
-        return ruta
+        if fuente not in self._sp_cache:
+            self._sp_cache[fuente] = dict(nx.single_source_shortest_path(grafo, fuente))
+        return list(self._sp_cache[fuente][destino])
+
+    def clearShortestPathCache(self):
+        """Limpia la caché de rutas más cortas (necesario entre ciclos cuando la topología cambia)."""
+        self._sp_cache.clear()
 
     #---RANDOM WALK-----------------------------
 
     def Random_Walk(self,identificador,vecinos):
         w=random.choice(vecinos)
         return w
+
+    def Random_Walk_Degree(self,identificador,vecinos,grafo):
+        """Caminata sesgada por grado.
+        P(u) = deg(u) / sum(deg(v) for v in vecinos)
+        Favorece saltar hacia nodos de mayor conectividad (hubs).
+        """
+        pesos = [grafo.degree(u) for u in vecinos]
+        total = sum(pesos)
+        if total == 0:
+            return random.choice(vecinos)
+        return random.choices(vecinos, weights=pesos, k=1)[0]
+
+    def Random_Walk_Inverse(self,identificador,vecinos,grafo):
+        """Caminata sesgada por grado inverso.
+        P(u) = (1/deg(u)) / sum(1/deg(v) for v in vecinos)
+        Favorece saltar hacia nodos de menor conectividad (periféricos).
+        """
+        pesos = [1.0 / grafo.degree(u) for u in vecinos]
+        total = sum(pesos)
+        if total == 0:
+            return random.choice(vecinos)
+        return random.choices(vecinos, weights=pesos, k=1)[0]
+
+    def Random_Walk_Node2Vec(self,identificador,vecinos,grafo,prev=None,p=1.0,q=1.0):
+        """Caminata node2vec.
+        Los parámetros p y q controlan el sesgo de retorno y de exploración:
+            alpha(x) = 1/p  si x == prev          (retorno al nodo anterior)
+                     = 1    si x es vecino de prev  (triángulo local / BFS)
+                     = 1/q  en otro caso            (exploración DFS)
+        p > 1 desincentiva volver atrás.
+        q < 1 favorece exploración hacia nodos lejanos (DFS).
+        q > 1 favorece exploración local (BFS).
+        """
+        if prev is None:
+            return random.choice(vecinos)
+        vecinos_prev = set(grafo.neighbors(prev))
+        pesos = []
+        for x in vecinos:
+            if x == prev:
+                alpha = 1.0 / p
+            elif x in vecinos_prev:
+                alpha = 1.0
+            else:
+                alpha = 1.0 / q
+            pesos.append(alpha)
+        return random.choices(vecinos, weights=pesos, k=1)[0]
 
     #---EXTRAS----------------------------------
 
