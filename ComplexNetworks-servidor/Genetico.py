@@ -22,7 +22,7 @@ def generacion_individuos(configuracion,corrida, experimento, n_individuos, degr
     #-----------(1) RUTAS ----------------------------------------------------------------------------------#
     ruta_actual = os.getcwd()                                                 # Obtener la ruta actual
     ruta_configuracion = os.path.abspath(os.path.join(ruta_actual,'..','..'))
-    ruta_configuracion = os.path.join(ruta_configuracion,'Pruebas',f'Configuracion_{configuracion}') # Ruta de la configuracion
+    ruta_configuracion = os.path.join(ruta_configuracion, f'Configuracion_{configuracion}') # Ruta de la configuracion
     ruta_corrida = os.path.join(ruta_configuracion,f'Corrida{corrida}')      # Ruta de la carpeta Corrida
     os.makedirs(ruta_corrida, exist_ok=True)
     #-----------(2) CREAR LA CARPETA EXPERIMENTO -----------------------------------------------------------#
@@ -121,7 +121,7 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
     # --------------------- Eliminar la carpeta Experimento: ------------------------------------#
     # ----------------------La info se encuentra en la lista de objetos poblacion_inicial y en x-#
     ruta_actual = os.getcwd()
-    ruta_experimento = os.path.abspath((os.path.join(ruta_actual,'..','..','Pruebas',f'Configuracion_{configuracion}',f'Corrida{corrida}',f'Experimento{experimento}')))
+    ruta_experimento = os.path.abspath((os.path.join(ruta_actual,'..','..',f'Configuracion_{configuracion}',f'Corrida{corrida}',f'Experimento{experimento}')))
     shutil.rmtree(ruta_experimento)
     for i in range(n_individuos): # Actualizar los coeficientes que representa la resistencia de la red
         x[i].COMUNICACION = poblacion_inicial[i].R_COMUNICACION
@@ -147,7 +147,7 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
     # ------------------- Creación del archivo csv y registro de la poblacion inicial y el mejor ----------#
     ruta_actual = os.getcwd()                                                    # Obtenemos la ruta actual
     ruta_archivo_csv = os.path.abspath(os.path.join(ruta_actual,'..','..'))      # Ruta del archivo csv
-    ruta_archivo_csv = os.path.abspath(os.path.join(ruta_archivo_csv,'Pruebas',f'ArchivoConfiguracion_{configuracion}',f'Corrida{corrida}'))
+    ruta_archivo_csv = os.path.abspath(os.path.join(ruta_archivo_csv, f'ArchivoConfiguracion_{configuracion}',f'Corrida{corrida}'))
     with open(ruta_archivo_csv+'_resultados.csv','w',newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['No.Generacion','Mejor_alpha','Mejor_vector_pop','Mejor_vector_dist','Mejor_aptitud', 'Punto_critico', 'R_conectividad', 'Promedio'])
@@ -286,7 +286,7 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
         # --------------------- Eliminar la carpeta experimento: ------------------------------------#
         # ----------------------La info se encuentra en la lista de objetos poblacion_inicial--------#
         ruta_actual = os.getcwd()
-        ruta_experimento = os.path.abspath((os.path.join(ruta_actual,'..','..','Pruebas',f'Configuracion_{configuracion}',f'Corrida{corrida}',f'Experimento{k}')))
+        ruta_experimento = os.path.abspath((os.path.join(ruta_actual,'..','..',f'Configuracion_{configuracion}',f'Corrida{corrida}',f'Experimento{k}')))
         shutil.rmtree(ruta_experimento)
         #----------- ALMACENAR LAS METRICAS OBTENIDAS CON LOS EXPERIMENTOS EN LA POBLACION NUEVA-----#
         for i in range(n_individuos):                                          
@@ -331,9 +331,7 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
 #########################################################################################################
 def pruebas(configuracion, n_corridas, n_generaciones, n_individuos, degradacion, longitud, n_torneo, n_padres, n_cruza, pc, pm_binaria):
     ruta_actual = os.getcwd()                                 # Obtenemos la ruta actual
-    ruta_pruebas = os.path.abspath(os.path.join(ruta_actual,'..','..'))
-    ruta_pruebas = os.path.abspath(os.path.join(ruta_pruebas,'Pruebas'))
-    ruta_grafica = os.path.abspath(os.path.join(ruta_pruebas,f'ArchivoConfiguracion_{configuracion}'))
+    ruta_grafica = os.path.abspath(os.path.join(ruta_actual,'..','..',f'ArchivoConfiguracion_{configuracion}'))
     os.makedirs(ruta_grafica, exist_ok=True)                  # Crear carpeta de resultados
     #------- E J E C U T A R   V A R I A S   C O R R I D A S   D E L   A L G O R I T M O -----#
     aptitudes = []
@@ -390,7 +388,7 @@ for p in pc:
         tiempos.append({'Configuracion':k,'Corrida':n_corridas, 'Generaciones':n_generaciones, 'Individuos':n_individuos, 'pc':{p},'pm_binario':{pb},'Tiempo_Segundos':duracion, 'Tiempo_minutos':minutos})
         # ---------- Eliminar capetas de las corridas de cada configuracion ----------------------#
         ruta_actual = os.getcwd()
-        ruta_configuracion = os.path.abspath((os.path.join(ruta_actual,'..','..','Pruebas',f'Configuracion_{k}')))
+        ruta_configuracion = os.path.abspath((os.path.join(ruta_actual,'..','..',f'Configuracion_{k}')))
         shutil.rmtree(ruta_configuracion)
         k += 1
 #------------------------ Aqui terminan de ejecutarse las configuraciones ------------------------#
@@ -398,9 +396,8 @@ df_tiempos = pd.DataFrame(tiempos)                     # Preparar para guarda en
 print(df_tiempos)
 ruta_actual = os.getcwd()
 ruta_archivo = os.path.abspath(os.path.join(ruta_actual, '..', '..'))
-ruta_archivo = os.path.join(ruta_archivo,'Pruebas')
 df_tiempos.to_csv(ruta_archivo+'tiempos.csv', index=False)
-datos = [[] for entrada in range(configuracion)]        # Extraer informacion de cada carpeta de configuracion
+datos = [[] for entrda in range(configuracion)]        # Extraer informacion de cada carpeta de configuracion
 #-----------------(2) OBTENCIÓN DE LA MEJOR APTITUD DE CADA CORRIDA ------------------------------#
 for a in range(1, configuracion + 1):
     for b in range(1, n_corridas + 1):
