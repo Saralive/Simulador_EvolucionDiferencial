@@ -2,8 +2,8 @@
 #-------------------( A N I L L O )----------------------
 NODOS_ANILLO=50                                          # Número de nodos del anillo. Colocar 0 si no se usa anillo
 #--------------------( M A L L A )-----------------------
-ROWS=30                                                  # Filas de la malla. Colocar 0 si no se usa malla
-COLUMNS=30                                               # Columnas de la malla
+ROWS=50                                                  # Filas de la malla. Colocar 0 si no se usa malla
+COLUMNS=50                                               # Columnas de la malla
 #----------------( F O R M A C I O N )-------------------
 # Estos parámetros se deben definir como lista aunque contengan un solo valor
 RED=["malla"]                                            # Tipo de red: "malla", "anillo"
@@ -22,12 +22,12 @@ CICLOS=25                                                # Número de ciclos de 
 EJECUCIONES=10                                            # Número de ejecuciones por experimento
 #-------------------( E X T R A S )----------------------
 ENLACES_DINAMICOS=2                                      # Número de enlaces dinámicos por nodo
-EXPLORADORES=10                                          # Número de paquetes exploradores por ciclo
+EXPLORADORES=20                                          # Número de paquetes exploradores por ciclo
 # Divisor del máximo número de conexiones permitidas (máximo numero de conexiones permitidas=num_nodos/DIV_CONEXIONES)
 DIV_CONEXIONES=1
 #-------------- CONFIGURACIÓN DE UNA SERIE DE EXPERIMENTOS DE DEGRADACIÓN DE REDES ----------------------------------#
 #--------------( D E G R A D A C I O N )-----------------
 SAVE_STEP=4                                              # Cada cuántos ataques registra medidas
 #--------------( P A R A L E L I S M O )-----------------# Ajustar según el número de cores de la CPU                                                     
-NUM_WORKERS=24                                            # Número de procesos paralelos para ejecutar simulaciones
+NUM_WORKERS=24                                           # Número de procesos paralelos para ejecutar simulaciones
 #-------------- SE AGREGARÁ LA CONFIGURACIÓN DE CADA RED EN EL MÉTODO DE OPTIMIZACIÓN -------------------------------#
