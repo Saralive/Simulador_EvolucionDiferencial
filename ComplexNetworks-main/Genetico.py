@@ -160,6 +160,22 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
             f'{mejores[0][4]}',
             f'{mejores[0][5]}',
             f'{mejores[0][6]}'])
+        #--------- R e g i s t r o   d e   t o d a   l a   p o b l a c i o n   i n i c i a l ---------------------#
+    with open(ruta_archivo_csv+'_resultados_individuos.csv','w',newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(['No.Generacion','Individuo','alpha','vector_pop','vector_dist','aptitud', 'Punto_critico', 'Conectividad', 'Promedio'])
+        for q in range(n_individuos):
+            writer.writerow([
+                0,
+                f'{q+1}',
+                f'{x[q].ALPHA}',
+                ','.join(f'{a}' for a in x[q].POPULARIDAD),
+                ','.join(f'{a}' for a in x[q].DISTANCIA),
+                f'{x[q].COMUNICACION}',
+                f'{x[q].PUNTO_CRITICO}',
+                f'{x[q].CONECTIVIDAD}',
+                f'{x[q].PROMEDIO}'
+                ])
     #--------- I t e r a c i ó n   p a r a   l a s   s i g u i e n t e s   g e n e r a c i o n e s -----------#
     for k in range(1, n_generaciones + 1):
         #-------- C R E A C I O N   D E   L A   N U E V A   P O B L A C I O N --------------------------------#
@@ -322,7 +338,22 @@ def genetico(configuracion, corrida, n_generaciones, n_individuos, longitud, deg
                 f'{mejores[k][3]}',
                 f'{mejores[k][4]}',
                 f'{mejores[k][5]}',
-                f'{mejores[k][6]}'])                                                                  
+                f'{mejores[k][6]}'])
+            #--------- R e g i s t r o   d e   t o d a   l a   p o b l a c i o n   i n i c i a l ---------------------#
+    with open(ruta_archivo_csv+'_resultados_individuos.csv','a',newline='') as f:
+        writer = csv.writer(f)
+        for q in range(n_individuos):
+            writer.writerow([
+                0,
+                f'{q+1}',
+                f'{x[q].ALPHA}',
+                ','.join(f'{a}' for a in x[q].POPULARIDAD),
+                ','.join(f'{a}' for a in x[q].DISTANCIA),
+                f'{x[q].COMUNICACION}',
+                f'{x[q].PUNTO_CRITICO}',
+                f'{x[q].CONECTIVIDAD}',
+                f'{x[q].PROMEDIO}'
+                ])                                                                  
         print(f'Nueva generacion: {x}')
         #------------- I N D I V I D U O   O P T I M O   P O R   C O R R I D A--------------#
     return mejores[n_generaciones], mejores

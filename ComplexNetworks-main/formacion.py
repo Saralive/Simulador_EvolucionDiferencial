@@ -170,7 +170,7 @@ if __name__ == '__main__':
     for t in tasks:
         print(t)
     # Leer NUM_WORKERS configurado
-    num_workers = getattr(configuracion, "NUM_WORKERS", 4)
+    num_workers = getattr(configuracion, "NUM_WORKERS", configuracion.NUM_WORKERS)
     print(f"\nEjecutando {len(tasks)} configuraciones en paralelo usando {num_workers} workers...")
     
     with Pool(processes=num_workers) as pool:

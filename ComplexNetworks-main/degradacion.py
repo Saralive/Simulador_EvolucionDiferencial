@@ -127,7 +127,7 @@ def ejecutar_degradacion():
                                     print(f" Ruta no encontrada, saltando: {ruta_grafo}")
                                     continue
 
-    num_workers = getattr(configuracion, "NUM_WORKERS", 4)
+    num_workers = getattr(configuracion, "NUM_WORKERS", configuracion.NUM_WORKERS)
     print(f'Ejecutando {len(tareas)} degradaciones en paralelo usando {num_workers} workers...')
 
     with Pool(processes=num_workers) as pool:
